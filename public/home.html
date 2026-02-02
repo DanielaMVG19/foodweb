@@ -5,23 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SlotEats - Home</title>
     <style>
-        :root { --primary: #e84118; --secondary: #ff4757; --dark: #2f3542; --light: #fef2f2; }
+        :root { --primary: #e84118; --secondary: #ff4757; --dark: #2f3542; --light: #fef2f2; --success: #27ae60; --warning: #f1c40f; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #fafafa; color: var(--dark); }
+        
         header { background: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .logo { font-size: 26px; font-weight: 900; cursor: pointer; }
         .logo span:first-child { color: var(--primary); }
         .logo span:last-child { color: var(--dark); }
+        
         .user-controls { display: flex; align-items: center; gap: 15px; }
         .btn-logout { background: #f1f2f6; color: #ff4757; border: none; padding: 8px 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 12px; }
+
         .categories-container { background: white; padding: 20px 0; border-bottom: 1px solid #eee; }
         .categories-list { display: flex; overflow-x: auto; padding: 0 25px; gap: 20px; scrollbar-width: none; }
         .cat-item { min-width: 75px; text-align: center; cursor: pointer; }
         .cat-icon { width: 60px; height: 60px; background: var(--light); border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 30px; margin-bottom: 8px; }
+
         .main-content { padding: 25px; max-width: 1200px; margin: 0 auto; }
         .restaurant-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; }
+        
+        /* Card con Badge de Estado */
         .res-card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05); position: relative; transition: 0.3s; }
         .res-image { width: 100%; height: 180px; background-size: cover; background-position: center; }
+        
+        .status-badge { position: absolute; top: 15px; right: 15px; padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: bold; color: white; text-transform: uppercase; }
+        .badge-disponible { background: var(--success); }
+        .badge-saturado { background: var(--warning); color: var(--dark); }
+        .badge-cerrado { background: #95a5a6; }
+
         .res-info { padding: 20px; }
+        .res-info h4 { margin: 0 0 10px 0; font-size: 19px; }
+        .res-info p { margin: 4px 0; color: #666; font-size: 13.5px; display: flex; align-items: center; gap: 6px; }
+        
         .res-actions { display: flex; gap: 10px; margin-top: 15px; }
         .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 13px; }
         .btn-order { background: var(--primary); color: white; }
@@ -32,7 +47,7 @@
 
 <header>
     <div style="display: flex; align-items: center;">
-        <span class="home-icon" id="homeBtn" onclick="showAll()" style="display:none; cursor:pointer; margin-right:10px;">🏠</span>
+        <span class="home-icon" id="homeBtn" onclick="showAll()" style="display:none; cursor:pointer; margin-right:10px; font-size: 20px;">🏠</span>
         <div class="logo" onclick="showAll()"><span>Slot</span><span>Eats</span></div>
     </div>
     <div class="user-controls">
@@ -56,7 +71,6 @@
 </div>
 
 <script>
-    // PRIMERO: VALIDAR SESIÓN
     if (localStorage.getItem('sesionActiva') !== 'true') {
         window.location.href = 'index.html';
     }
@@ -66,24 +80,63 @@
         window.location.href = 'index.html';
     }
 
+    // Datos extendidos: nombre, categoría, imagen, estado, horario y días
     const restaurantes = [
-        { nombre: "Burger Galaxy", cat: "Hamburguesas", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500", status: "disponible", hora: "12:00 PM - 11:00 PM" },
-        { nombre: "Pizza Nostra", cat: "Pizza", img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500", status: "saturado", hora: "02:00 PM - 10:00 PM" },
-        { nombre: "Sushi Master", cat: "Sushi", img: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500", status: "disponible", hora: "01:00 PM - 11:00 PM" },
-        { nombre: "Chicken House", cat: "Pollo", img: "https://images.unsplash.com/photo-1626082866744-32fe3e0850ff?w=500", status: "disponible", hora: "11:00 AM - 09:00 PM" }
+        { 
+            nombre: "Burger Galaxy", 
+            cat: "Hamburguesas", 
+            img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500", 
+            status: "disponible", 
+            horario: "12:00 PM - 11:00 PM",
+            dias: "Lun - Dom"
+        },
+        { 
+            nombre: "Pizza Nostra", 
+            cat: "Pizza", 
+            img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500", 
+            status: "saturado", 
+            horario: "02:00 PM - 10:00 PM",
+            dias: "Mar - Dom"
+        },
+        { 
+            nombre: "Sushi Master", 
+            cat: "Sushi", 
+            img: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500", 
+            status: "disponible", 
+            horario: "01:00 PM - 11:00 PM",
+            dias: "Lun - Sáb"
+        },
+        { 
+            nombre: "Chicken House", 
+            cat: "Pollo", 
+            img: "https://images.unsplash.com/photo-1626082866744-32fe3e0850ff?w=500", 
+            status: "cerrado", 
+            horario: "11:00 AM - 09:00 PM",
+            dias: "Lun - Vie"
+        }
     ];
 
     function renderRes(lista) {
         const grid = document.getElementById('resGrid');
         grid.innerHTML = lista.map(res => `
             <div class="res-card">
+                <div class="status-badge badge-${res.status}">${res.status}</div>
+                
                 <div class="res-image" style="background-image: url('${res.img}')"></div>
+                
                 <div class="res-info">
                     <h4>${res.nombre}</h4>
-                    <p>🍴 Especialidad: ${res.cat}</p>
+                    <p><span>🍴</span> ${res.cat}</p>
+                    <p><span>🕒</span> ${res.horario}</p>
+                    <p><span>📅</span> ${res.dias}</p>
+                    
                     <div class="res-actions">
                         <button class="btn btn-order" onclick="window.location.href='menu.html?res=${encodeURIComponent(res.nombre)}'">Ver Menú</button>
-                        <button class="btn btn-reserve" onclick="window.location.href='reserva.html?res=${encodeURIComponent(res.nombre)}'">Reservar</button>
+                        <button class="btn btn-reserve" 
+                            ${res.status === 'cerrado' ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''} 
+                            onclick="window.location.href='reserva.html?res=${encodeURIComponent(res.nombre)}'">
+                            ${res.status === 'cerrado' ? 'Cerrado' : 'Reservar'}
+                        </button>
                     </div>
                 </div>
             </div>`).join('');
@@ -91,11 +144,13 @@
 
     function filterBy(cat) {
         document.getElementById('homeBtn').style.display = "block";
+        document.getElementById('currentCategory').innerText = "Lo mejor en " + cat;
         renderRes(restaurantes.filter(r => r.cat === cat));
     }
 
     function showAll() {
         document.getElementById('homeBtn').style.display = "none";
+        document.getElementById('currentCategory').innerText = "Restaurantes Disponibles";
         renderRes(restaurantes);
     }
 

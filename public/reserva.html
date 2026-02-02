@@ -30,7 +30,7 @@
         .input-group { text-align: left; margin-bottom: 15px; }
         label { font-size: 12px; font-weight: bold; color: var(--dark); margin-left: 5px; }
         
-        input { 
+        input, select { 
             width: 100%; 
             margin-top: 5px;
             padding: 14px; 
@@ -40,9 +40,13 @@
             outline: none; 
             transition: 0.3s;
             font-size: 15px;
+            background: white;
+            font-family: inherit;
         }
-        input:focus { border-color: var(--primary); background: #fffcfc; }
+        input:focus, select:focus { border-color: var(--primary); background: #fffcfc; }
         
+        input[type="date"], input[type="time"], select { cursor: pointer; }
+
         button { 
             width: 100%; 
             padding: 16px; 
@@ -73,7 +77,7 @@
 
     <div class="form-box">
         <h3 id="resTitle">Reservar</h3>
-        <p id="resSub">Completa los datos para asegurar tu mesa en la base de datos.</p>
+        <p id="resSub">Completa los datos para asegurar tu mesa.</p>
         
         <div class="input-group">
             <label>Nombre de la reserva</label>
@@ -86,8 +90,22 @@
         </div>
 
         <div class="input-group">
+            <label>Fecha de la visita</label>
+            <input type="date" id="fechaReserva" required>
+        </div>
+
+        <div class="input-group">
             <label>Hora deseada</label>
             <input type="time" id="hora" required>
+        </div>
+
+        <div class="input-group">
+            <label>Preferencia de zona</label>
+            <select id="zona" required>
+                <option value="Interior">Interior 🏠</option>
+                <option value="Terraza">Terraza 🌳</option>
+                <option value="Barra">Barra 🍸</option>
+            </select>
         </div>
         
         <button id="btnConfirmar">Confirmar y Guardar Reserva</button>
@@ -95,30 +113,31 @@
     </div>
 
     <script>
-        // 1. Capturar el nombre del restaurante desde la URL
         const params = new URLSearchParams(window.location.search);
         const restauranteSeleccionado = params.get('res') || "Restaurante";
-        
-        // Mostrar el nombre dinámicamente
         document.getElementById('resTitle').innerText = "Reserva en " + restauranteSeleccionado;
 
-        // 2. Lógica para enviar la reserva al servidor y a MongoDB
+        const fechaInput = document.getElementById('fechaReserva');
+        const hoy = new Date().toISOString().split('T')[0];
+        fechaInput.setAttribute('min', hoy);
+        fechaInput.value = hoy;
+
         document.getElementById('btnConfirmar').addEventListener('click', async () => {
             const data = {
                 restaurante: restauranteSeleccionado,
                 nombreCliente: document.getElementById('nombreCliente').value,
                 personas: document.getElementById('personas').value,
-                hora: document.getElementById('hora').value
+                fecha: document.getElementById('fechaReserva').value,
+                hora: document.getElementById('hora').value,
+                zona: document.getElementById('zona').value // Capturamos la zona
             };
 
-            // Validación básica
-            if (!data.nombreCliente || !data.personas || !data.hora) {
+            if (!data.nombreCliente || !data.personas || !data.fecha || !data.hora || !data.zona) {
                 alert("⚠️ Por favor, llena todos los campos.");
                 return;
             }
 
             try {
-                // Hacemos la petición POST a la base de datos
                 const response = await fetch('/reserve', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -128,13 +147,13 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    alert("🎉 ¡Éxito! Su reserva se ha guardado en la base de datos.");
+                    alert("🎉 ¡Éxito! Reserva en " + data.zona + " confirmada para el " + data.fecha);
                     window.location.href = 'home.html'; 
                 } else {
-                    alert("❌ Error del servidor: " + result.msg);
+                    alert("❌ Error: " + result.msg);
                 }
             } catch (error) {
-                alert("🚫 No se pudo conectar con la base de datos. Revisa tu conexión.");
+                alert("🚫 Error de conexión con la base de datos.");
             }
         });
     </script>
