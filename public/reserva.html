@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reservar en SlotEats</title>
+    <style>
+        :root { --primary: #e84118; --secondary: #ff4757; }
+        body { font-family: 'Segoe UI', sans-serif; background: #fef2f2; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .form-box { background: white; padding: 40px; border-radius: 25px; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
+        h3 { color: var(--primary); margin-bottom: 20px; }
+        input { width: 100%; margin: 10px 0; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: var(--secondary); }
+        button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 20px; }
+        button:hover { background: var(--secondary); }
+        .back { display: block; margin-top: 15px; color: #999; text-decoration: none; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+    <div class="form-box">
+        <h3 id="resTitle">Reservar</h3>
+        <p id="resSub" style="font-size: 14px; color: #666;"></p>
+        
+        <input type="text" id="nombreCliente" placeholder="Tu nombre completo" required>
+        <input type="number" id="personas" placeholder="Número de personas" required>
+        <input type="time" id="hora" required>
+        
+        <button id="btnConfirmar">Confirmar Reservación</button>
+        <a href="home.html" class="back">Cancelar y volver</a>
+    </div>
+
+    <script>
+        // Obtener el nombre del restaurante de la URL
+        const params = new URLSearchParams(window.location.search);
+        const restauranteSeleccionado = params.get('res') || "Restaurante";
+        document.getElementById('resTitle').innerText = "Reserva en " + restauranteSeleccionado;
+
+        document.getElementById('btnConfirmar').addEventListener('click', async () => {
+            const data = {
+                restaurante: restauranteSeleccionado,
+                nombreCliente: document.getElementById('nombreCliente').value,
+                personas: document.getElementById('personas').value,
+                hora: document.getElementById('hora').value
+            };
+
+            if (!data.nombreCliente || !data.personas || !data.hora) {
+                return alert("⚠️ Por favor, llena todos los campos.");
+            }
+
+            try {
+                const response = await fetch('/reserve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.msg);
+                    window.location.href = 'home.html'; // Regresa al home tras éxito
+                } else {
+                    alert("Hubo un problema: " + result.msg);
+                }
+            } catch (error) {
+                alert("Error de conexión con el servidor.");
+            }
+        });
+    </script>
+</body>
+</html>

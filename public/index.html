@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Bienvenido - SlotEats</title>
+    <style>
+        :root {
+            --primary: #e84118;
+            --secondary: #ff4757;
+            --dark: #2f3542;
+        }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            background: #fef2f2; 
+        }
+        /* Esta es la única caja blanca que necesitamos */
+        .container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 25px rgba(232, 65, 24, 0.15); 
+            width: 340px; 
+            text-align: center; 
+        }
+        h3 { 
+            margin-top: 0;
+            margin-bottom: 25px; 
+            color: var(--primary); 
+            font-size: 32px; 
+            font-weight: 800; 
+        }
+        h3 span { color: var(--dark); }
+
+        /* Eliminamos cualquier estilo de fondo del form para que sea transparente */
+        form { background: transparent; padding: 0; box-shadow: none; }
+
+        input { 
+            width: 100%; 
+            margin: 12px 0; 
+            padding: 14px; 
+            border: 2px solid #eee; 
+            border-radius: 10px; 
+            box-sizing: border-box; 
+            outline: none; 
+            transition: 0.3s; 
+        }
+        input:focus { border-color: var(--secondary); }
+        
+        .btn-login { 
+            width: 100%; 
+            padding: 14px; 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 16px; 
+            margin-top: 10px; 
+            transition: 0.3s; 
+        }
+        .btn-login:hover { background: var(--secondary); transform: translateY(-2px); }
+        
+        .divider { margin: 25px 0; border-bottom: 1px solid #eee; position: relative; }
+        .divider span { background: white; padding: 0 15px; position: relative; top: 10px; color: #999; font-size: 14px; }
+        
+        .btn-register { 
+            width: 100%; 
+            padding: 14px; 
+            background: white; 
+            color: var(--primary); 
+            border: 2px solid var(--primary); 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 16px; 
+            transition: 0.3s; 
+            margin-top: 10px; 
+        }
+        .btn-register:hover { background: #fff5f5; border-color: var(--secondary); color: var(--secondary); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h3>Slot<span>Eats</span></h3>
+        
+        <form id="loginForm">
+            <input type="text" id="userLogin" placeholder="Usuario" required>
+            <input type="password" id="passLogin" placeholder="Contraseña" required>
+            <button type="submit" class="btn-login">Iniciar Sesión</button>
+        </form>
+
+        <div class="divider"><span>¿Eres nuevo?</span></div>
+
+        <button class="btn-register" onclick="window.location.href='registro.html'">Crear Cuenta</button>
+    </div>
+
+    <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const data = {
+        username: document.getElementById('userLogin').value,
+        password: document.getElementById('passLogin').value
+    };
+
+    try {
+        const response = await fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // --- AQUÍ ESTÁ LA CONEXIÓN MÁGICA ---
+            
+            // 1. Guardamos el nombre que viene del servidor en la "mochila" del navegador
+            localStorage.setItem('userNombre', result.nombre); 
+            
+            // 2. Mensaje de éxito
+            alert("¡Bienvenido " + result.nombre + "!");
+            
+            // 3. Saltamos a la página de comida
+            window.location.href = "home.html"; 
+
+        } else {
+            // Si los datos están mal (usuario no existe o pass errónea)
+            alert(result.msg);
+        }
+    } catch (error) {
+        alert("Error de conexión con el servidor");
+        console.error(error);
+    }
+});
+    </script>
+</body>
+</html>

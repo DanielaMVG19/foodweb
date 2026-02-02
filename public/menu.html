@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Menú - SlotEats</title>
+    <style>
+        :root { --primary: #e84118; --dark: #2f3542; }
+        body { font-family: sans-serif; background: #fafafa; padding: 20px; }
+        .header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .menu-item { background: white; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .btn-add { background: var(--primary); color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; }
+        .back { color: var(--primary); text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="home.html" class="back">⬅ Volver</a>
+        <h2 id="resName">Restaurante</h2>
+    </div>
+    <div id="itemsContainer">
+        <div class="menu-item">
+            <div><strong>Combo Especial</strong><br><small>$150.00</small></div>
+            <button class="btn-add" onclick="alert('Agregado al pedido')">Agregar +</button>
+        </div>
+        <div class="menu-item">
+            <div><strong>Paquete Familiar</strong><br><small>$350.00</small></div>
+            <button class="btn-add" onclick="alert('Agregado al pedido')">Agregar +</button>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        document.getElementById('resName').innerText = "Menú de " + params.get('res');
+    </script>
+</body>
+</html>
