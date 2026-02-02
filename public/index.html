@@ -18,7 +18,6 @@
             margin: 0; 
             background: #fef2f2; 
         }
-        /* Esta es la única caja blanca que necesitamos */
         .container { 
             background: white; 
             padding: 40px; 
@@ -36,8 +35,13 @@
         }
         h3 span { color: var(--dark); }
 
-        /* Eliminamos cualquier estilo de fondo del form para que sea transparente */
         form { background: transparent; padding: 0; box-shadow: none; }
+
+        /* Contenedor relativo para el ojito */
+        .pass-container {
+            position: relative;
+            width: 100%;
+        }
 
         input { 
             width: 100%; 
@@ -51,6 +55,18 @@
         }
         input:focus { border-color: var(--secondary); }
         
+        /* Estilo del ojito */
+        .toggle-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: var(--primary);
+            font-size: 18px;
+            user-select: none;
+        }
+
         .btn-login { 
             width: 100%; 
             padding: 14px; 
@@ -92,7 +108,12 @@
         
         <form id="loginForm">
             <input type="text" id="userLogin" placeholder="Usuario" required>
-            <input type="password" id="passLogin" placeholder="Contraseña" required>
+            
+            <div class="pass-container">
+                <input type="password" id="passLogin" placeholder="Contraseña" required>
+                <span class="toggle-btn" onclick="togglePassword()">👁️</span>
+            </div>
+            
             <button type="submit" class="btn-login">Iniciar Sesión</button>
         </form>
 
@@ -102,44 +123,59 @@
     </div>
 
     <script>
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const data = {
-        username: document.getElementById('userLogin').value,
-        password: document.getElementById('passLogin').value
-    };
-
-    try {
-        const response = await fetch('/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-            // --- AQUÍ ESTÁ LA CONEXIÓN MÁGICA ---
+        // Función para mostrar/ocultar contraseña
+        function togglePassword() {
+            const passInput = document.getElementById('passLogin');
+            const toggleIcon = document.querySelector('.toggle-btn');
             
-            // 1. Guardamos el nombre que viene del servidor en la "mochila" del navegador
-            localStorage.setItem('userNombre', result.nombre); 
-            
-            // 2. Mensaje de éxito
-            alert("¡Bienvenido " + result.nombre + "!");
-            
-            // 3. Saltamos a la página de comida
-            window.location.href = "home.html"; 
-
-        } else {
-            // Si los datos están mal (usuario no existe o pass errónea)
-            alert(result.msg);
+            if (passInput.type === "password") {
+                passInput.type = "text";
+                toggleIcon.innerText = "🔒"; // Cambia el icono al estar visible
+            } else {
+                passInput.type = "password";
+                toggleIcon.innerText = "👁️";
+            }
         }
-    } catch (error) {
-        alert("Error de conexión con el servidor");
-        console.error(error);
-    }
-});
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                username: document.getElementById('userLogin').value,
+                password: document.getElementById('passLogin').value
+            };
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // --- SEGURIDAD Y CONEXIÓN ---
+                    
+                    // 1. Activamos la marca de sesión
+                    localStorage.setItem('sesionActiva', 'true');
+                    
+                    // 2. Guardamos el nombre para el saludo
+                    localStorage.setItem('userNombre', result.nombre); 
+                    
+                    alert("¡Bienvenido " + result.nombre + "!");
+                    
+                    // 3. Saltamos al Home
+                    window.location.href = "home.html"; 
+
+                } else {
+                    alert(result.msg);
+                }
+            } catch (error) {
+                alert("Error de conexión con el servidor");
+                console.error(error);
+            }
+        });
     </script>
 </body>
 </html>

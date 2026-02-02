@@ -26,6 +26,21 @@
         
         .home-icon { font-size: 24px; cursor: pointer; margin-right: 15px; display: none; }
 
+        /* Estilos para el área de Usuario y Logout */
+        .user-controls { display: flex; align-items: center; gap: 15px; }
+        .btn-logout { 
+            background: #f1f2f6; 
+            color: #ff4757; 
+            border: none; 
+            padding: 8px 12px; 
+            border-radius: 10px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: 12px;
+            transition: 0.3s;
+        }
+        .btn-logout:hover { background: #ffebeb; transform: scale(1.05); }
+
         /* Categorías */
         .categories-container { background: white; padding: 20px 0; border-bottom: 1px solid #eee; }
         .categories-list { display: flex; overflow-x: auto; padding: 0 25px; gap: 20px; scrollbar-width: none; }
@@ -69,7 +84,10 @@
         <span class="home-icon" id="homeBtn" onclick="showAll()">🏠</span>
         <div class="logo" onclick="showAll()"><span>Slot</span><span>Eats</span></div>
     </div>
-    <div id="welcomeMsg" style="font-weight: 600; color: var(--primary);">Hola, Gourmet</div>
+    <div class="user-controls">
+        <div id="welcomeMsg" style="font-weight: 600; color: var(--primary);">Hola, Gourmet</div>
+        <button class="btn-logout" onclick="cerrarSesion()">Salir 🚪</button>
+    </div>
 </header>
 
 <div class="categories-container">
@@ -87,7 +105,20 @@
 </div>
 
 <script>
-    // Base de datos de restaurantes (puedes añadir más aquí)
+    // --- SEGURIDAD: Límite de acceso ---
+    // Si la sesión no está activa, redirigir al index inmediatamente
+    if (localStorage.getItem('sesionActiva') !== 'true') {
+        window.location.href = 'index.html';
+    }
+
+    // --- FUNCIÓN: Cerrar Sesión ---
+    function cerrarSesion() {
+        localStorage.removeItem('sesionActiva');
+        localStorage.removeItem('userNombre');
+        alert("Sesión cerrada correctamente. ¡Vuelve pronto!");
+        window.location.href = 'index.html';
+    }
+
     const restaurantes = [
         { nombre: "Burger Galaxy", cat: "Hamburguesas", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500", status: "disponible", hora: "12:00 PM - 11:00 PM" },
         { nombre: "Pizza Nostra", cat: "Pizza", img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500", status: "saturado", hora: "02:00 PM - 10:00 PM" },
@@ -95,7 +126,6 @@
         { nombre: "Chicken House", cat: "Pollo", img: "https://images.unsplash.com/photo-1626082866744-32fe3e0850ff?w=500", status: "disponible", hora: "11:00 AM - 09:00 PM" }
     ];
 
-    // Función para dibujar los restaurantes en pantalla
     function renderRes(lista) {
         const grid = document.getElementById('resGrid');
         grid.innerHTML = "";
@@ -117,7 +147,6 @@
         });
     }
 
-    // Filtros de categoría
     function filterBy(cat) {
         document.getElementById('homeBtn').style.display = "block";
         document.getElementById('currentCategory').innerText = "Lo mejor en " + cat;
@@ -125,14 +154,12 @@
         renderRes(filtrados);
     }
 
-    // Mostrar todos (Reset)
     function showAll() {
         document.getElementById('homeBtn').style.display = "none";
         document.getElementById('currentCategory').innerText = "Restaurantes Disponibles";
         renderRes(restaurantes);
     }
 
-    // Navegación con parámetros de nombre
     function goToMenu(name) { 
         window.location.href = `menu.html?res=${encodeURIComponent(name)}`; 
     }
@@ -141,9 +168,7 @@
         window.location.href = `reserva.html?res=${encodeURIComponent(name)}`; 
     }
 
-    // Al cargar la página
     window.onload = () => {
-        // Recupera el nombre guardado en el registro
         const nombreUsuario = localStorage.getItem('userNombre') || 'Gourmet';
         document.getElementById('welcomeMsg').innerText = "Hola, " + nombreUsuario;
         renderRes(restaurantes);
