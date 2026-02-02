@@ -2,39 +2,107 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reservar en SlotEats</title>
     <style>
-        :root { --primary: #e84118; --secondary: #ff4757; }
-        body { font-family: 'Segoe UI', sans-serif; background: #fef2f2; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .form-box { background: white; padding: 40px; border-radius: 25px; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
-        h3 { color: var(--primary); margin-bottom: 20px; }
-        input { width: 100%; margin: 10px 0; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; outline: none; }
-        input:focus { border-color: var(--secondary); }
-        button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 20px; }
-        button:hover { background: var(--secondary); }
-        .back { display: block; margin-top: 15px; color: #999; text-decoration: none; font-size: 13px; }
+        :root { --primary: #e84118; --secondary: #ff4757; --dark: #2f3542; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: #fef2f2; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0; 
+        }
+        .form-box { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 25px; 
+            width: 100%;
+            max-width: 350px; 
+            box-shadow: 0 10px 30px rgba(232, 65, 24, 0.1); 
+            text-align: center; 
+        }
+        h3 { color: var(--primary); margin-bottom: 10px; font-size: 24px; }
+        #resSub { font-size: 14px; color: #666; margin-bottom: 25px; }
+        
+        .input-group { text-align: left; margin-bottom: 15px; }
+        label { font-size: 12px; font-weight: bold; color: var(--dark); margin-left: 5px; }
+        
+        input { 
+            width: 100%; 
+            margin-top: 5px;
+            padding: 14px; 
+            border: 2px solid #eee; 
+            border-radius: 12px; 
+            box-sizing: border-box; 
+            outline: none; 
+            transition: 0.3s;
+            font-size: 15px;
+        }
+        input:focus { border-color: var(--primary); background: #fffcfc; }
+        
+        button { 
+            width: 100%; 
+            padding: 16px; 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 16px;
+            margin-top: 10px; 
+            transition: 0.3s;
+        }
+        button:hover { background: var(--secondary); transform: translateY(-2px); }
+        button:active { transform: scale(0.98); }
+        
+        .back { 
+            display: block; 
+            margin-top: 20px; 
+            color: #999; 
+            text-decoration: none; 
+            font-size: 14px; 
+        }
+        .back:hover { color: var(--dark); }
     </style>
 </head>
 <body>
 
     <div class="form-box">
         <h3 id="resTitle">Reservar</h3>
-        <p id="resSub" style="font-size: 14px; color: #666;"></p>
+        <p id="resSub">Completa los datos para asegurar tu mesa en la base de datos.</p>
         
-        <input type="text" id="nombreCliente" placeholder="Tu nombre completo" required>
-        <input type="number" id="personas" placeholder="Número de personas" required>
-        <input type="time" id="hora" required>
+        <div class="input-group">
+            <label>Nombre de la reserva</label>
+            <input type="text" id="nombreCliente" placeholder="Nombre completo" required>
+        </div>
+
+        <div class="input-group">
+            <label>Número de personas</label>
+            <input type="number" id="personas" placeholder="¿Cuántos vienen?" min="1" max="20" required>
+        </div>
+
+        <div class="input-group">
+            <label>Hora deseada</label>
+            <input type="time" id="hora" required>
+        </div>
         
-        <button id="btnConfirmar">Confirmar Reservación</button>
-        <a href="home.html" class="back">Cancelar y volver</a>
+        <button id="btnConfirmar">Confirmar y Guardar Reserva</button>
+        <a href="home.html" class="back">⬅ Cancelar y volver</a>
     </div>
 
     <script>
-        // Obtener el nombre del restaurante de la URL
+        // 1. Capturar el nombre del restaurante desde la URL
         const params = new URLSearchParams(window.location.search);
         const restauranteSeleccionado = params.get('res') || "Restaurante";
+        
+        // Mostrar el nombre dinámicamente
         document.getElementById('resTitle').innerText = "Reserva en " + restauranteSeleccionado;
 
+        // 2. Lógica para enviar la reserva al servidor y a MongoDB
         document.getElementById('btnConfirmar').addEventListener('click', async () => {
             const data = {
                 restaurante: restauranteSeleccionado,
@@ -43,11 +111,14 @@
                 hora: document.getElementById('hora').value
             };
 
+            // Validación básica
             if (!data.nombreCliente || !data.personas || !data.hora) {
-                return alert("⚠️ Por favor, llena todos los campos.");
+                alert("⚠️ Por favor, llena todos los campos.");
+                return;
             }
 
             try {
+                // Hacemos la petición POST a la base de datos
                 const response = await fetch('/reserve', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -55,14 +126,15 @@
                 });
 
                 const result = await response.json();
+
                 if (response.ok) {
-                    alert(result.msg);
-                    window.location.href = 'home.html'; // Regresa al home tras éxito
+                    alert("🎉 ¡Éxito! Su reserva se ha guardado en la base de datos.");
+                    window.location.href = 'home.html'; 
                 } else {
-                    alert("Hubo un problema: " + result.msg);
+                    alert("❌ Error del servidor: " + result.msg);
                 }
             } catch (error) {
-                alert("Error de conexión con el servidor.");
+                alert("🚫 No se pudo conectar con la base de datos. Revisa tu conexión.");
             }
         });
     </script>
