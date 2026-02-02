@@ -30,7 +30,7 @@
         .input-group { text-align: left; margin-bottom: 15px; }
         label { font-size: 12px; font-weight: bold; color: var(--dark); margin-left: 5px; }
         
-        input, select { 
+        input, textarea { 
             width: 100%; 
             margin-top: 5px;
             padding: 14px; 
@@ -40,13 +40,11 @@
             outline: none; 
             transition: 0.3s;
             font-size: 15px;
-            background: white;
             font-family: inherit;
         }
-        input:focus, select:focus { border-color: var(--primary); background: #fffcfc; }
+        textarea { resize: none; height: 80px; }
+        input:focus, textarea:focus { border-color: var(--primary); background: #fffcfc; }
         
-        input[type="date"], input[type="time"], select { cursor: pointer; }
-
         button { 
             width: 100%; 
             padding: 16px; 
@@ -61,55 +59,42 @@
             transition: 0.3s;
         }
         button:hover { background: var(--secondary); transform: translateY(-2px); }
-        button:active { transform: scale(0.98); }
-        
-        .back { 
-            display: block; 
-            margin-top: 20px; 
-            color: #999; 
-            text-decoration: none; 
-            font-size: 14px; 
-        }
-        .back:hover { color: var(--dark); }
+        .back { display: block; margin-top: 20px; color: #999; text-decoration: none; font-size: 14px; }
     </style>
 </head>
 <body>
 
     <div class="form-box">
         <h3 id="resTitle">Reservar</h3>
-        <p id="resSub">Completa los datos para asegurar tu mesa.</p>
+        <p id="resSub">Asegura tu lugar en pocos pasos.</p>
         
         <div class="input-group">
             <label>Nombre de la reserva</label>
-            <input type="text" id="nombreCliente" placeholder="Nombre completo" required>
+            <input type="text" id="nombreCliente" placeholder="¿A nombre de quién?" required>
         </div>
 
         <div class="input-group">
             <label>Número de personas</label>
-            <input type="number" id="personas" placeholder="¿Cuántos vienen?" min="1" max="20" required>
+            <input type="number" id="personas" min="1" max="20" value="2" required>
         </div>
 
         <div class="input-group">
-            <label>Fecha de la visita</label>
+            <label>Fecha</label>
             <input type="date" id="fechaReserva" required>
         </div>
 
         <div class="input-group">
-            <label>Hora deseada</label>
+            <label>Hora</label>
             <input type="time" id="hora" required>
         </div>
 
         <div class="input-group">
-            <label>Preferencia de zona</label>
-            <select id="zona" required>
-                <option value="Interior">Interior 🏠</option>
-                <option value="Terraza">Terraza 🌳</option>
-                <option value="Barra">Barra 🍸</option>
-            </select>
+            <label>Notas adicionales (Opcional)</label>
+            <textarea id="notas" placeholder="Ej: mesa cerca de la ventana, zona terraza, es un cumpleaños..."></textarea>
         </div>
         
-        <button id="btnConfirmar">Confirmar y Guardar Reserva</button>
-        <a href="home.html" class="back">⬅ Cancelar y volver</a>
+        <button id="btnConfirmar">Confirmar Reserva</button>
+        <a href="home.html" class="back">⬅ Volver al inicio</a>
     </div>
 
     <script>
@@ -118,9 +103,8 @@
         document.getElementById('resTitle').innerText = "Reserva en " + restauranteSeleccionado;
 
         const fechaInput = document.getElementById('fechaReserva');
-        const hoy = new Date().toISOString().split('T')[0];
-        fechaInput.setAttribute('min', hoy);
-        fechaInput.value = hoy;
+        fechaInput.setAttribute('min', new Date().toISOString().split('T')[0]);
+        fechaInput.value = new Date().toISOString().split('T')[0];
 
         document.getElementById('btnConfirmar').addEventListener('click', async () => {
             const data = {
@@ -129,11 +113,11 @@
                 personas: document.getElementById('personas').value,
                 fecha: document.getElementById('fechaReserva').value,
                 hora: document.getElementById('hora').value,
-                zona: document.getElementById('zona').value // Capturamos la zona
+                notas: document.getElementById('notas').value // Se envía como texto libre
             };
 
-            if (!data.nombreCliente || !data.personas || !data.fecha || !data.hora || !data.zona) {
-                alert("⚠️ Por favor, llena todos los campos.");
+            if (!data.nombreCliente || !data.personas || !data.fecha || !data.hora) {
+                alert("⚠️ Por favor, completa los campos obligatorios.");
                 return;
             }
 
@@ -144,16 +128,14 @@
                     body: JSON.stringify(data)
                 });
 
-                const result = await response.json();
-
                 if (response.ok) {
-                    alert("🎉 ¡Éxito! Reserva en " + data.zona + " confirmada para el " + data.fecha);
+                    alert("🎉 ¡Reserva guardada con éxito!");
                     window.location.href = 'home.html'; 
                 } else {
-                    alert("❌ Error: " + result.msg);
+                    alert("❌ Error al guardar.");
                 }
             } catch (error) {
-                alert("🚫 Error de conexión con la base de datos.");
+                alert("🚫 Error de conexión.");
             }
         });
     </script>
