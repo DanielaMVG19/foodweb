@@ -7,81 +7,32 @@
     <style>
         :root { --primary: #e84118; --secondary: #ff4757; --dark: #2f3542; --light: #fef2f2; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #fafafa; color: var(--dark); }
-        
-        /* Header y Navegación */
-        header { 
-            background: white; 
-            padding: 15px 25px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            position: sticky; 
-            top: 0; 
-            z-index: 1000; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
-        }
+        header { background: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .logo { font-size: 26px; font-weight: 900; cursor: pointer; }
         .logo span:first-child { color: var(--primary); }
         .logo span:last-child { color: var(--dark); }
-        
-        .home-icon { font-size: 24px; cursor: pointer; margin-right: 15px; display: none; }
-
-        /* Estilos para el área de Usuario y Logout */
         .user-controls { display: flex; align-items: center; gap: 15px; }
-        .btn-logout { 
-            background: #f1f2f6; 
-            color: #ff4757; 
-            border: none; 
-            padding: 8px 12px; 
-            border-radius: 10px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            font-size: 12px;
-            transition: 0.3s;
-        }
-        .btn-logout:hover { background: #ffebeb; transform: scale(1.05); }
-
-        /* Categorías */
+        .btn-logout { background: #f1f2f6; color: #ff4757; border: none; padding: 8px 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 12px; }
         .categories-container { background: white; padding: 20px 0; border-bottom: 1px solid #eee; }
         .categories-list { display: flex; overflow-x: auto; padding: 0 25px; gap: 20px; scrollbar-width: none; }
-        .cat-item { min-width: 75px; text-align: center; cursor: pointer; transition: 0.2s; }
-        .cat-item:hover .cat-icon { transform: scale(1.1); background: #ffebeb; }
-        .cat-icon { 
-            width: 60px; height: 60px; background: var(--light); 
-            border-radius: 18px; display: flex; align-items: center; 
-            justify-content: center; font-size: 30px; margin-bottom: 8px; 
-            border: 1px solid #ffebeb; transition: 0.3s;
-        }
-        
-        /* Grid de Restaurantes */
+        .cat-item { min-width: 75px; text-align: center; cursor: pointer; }
+        .cat-icon { width: 60px; height: 60px; background: var(--light); border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 30px; margin-bottom: 8px; }
         .main-content { padding: 25px; max-width: 1200px; margin: 0 auto; }
         .restaurant-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; }
-        
         .res-card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05); position: relative; transition: 0.3s; }
-        .res-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        
         .res-image { width: 100%; height: 180px; background-size: cover; background-position: center; }
-        
-        .status-badge { position: absolute; top: 15px; right: 15px; padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: bold; color: white; text-transform: uppercase; }
-        .disponible { background: #27ae60; }
-        .saturado { background: #f1c40f; color: black; }
-        
         .res-info { padding: 20px; }
-        .res-info h4 { margin: 0 0 10px 0; font-size: 18px; }
-        .res-info p { margin: 5px 0; color: #666; font-size: 14px; }
-        
         .res-actions { display: flex; gap: 10px; margin-top: 15px; }
-        .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s; }
+        .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 13px; }
         .btn-order { background: var(--primary); color: white; }
         .btn-reserve { background: white; color: var(--primary); border: 2px solid var(--primary); }
-        .btn:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
 
 <header>
     <div style="display: flex; align-items: center;">
-        <span class="home-icon" id="homeBtn" onclick="showAll()">🏠</span>
+        <span class="home-icon" id="homeBtn" onclick="showAll()" style="display:none; cursor:pointer; margin-right:10px;">🏠</span>
         <div class="logo" onclick="showAll()"><span>Slot</span><span>Eats</span></div>
     </div>
     <div class="user-controls">
@@ -105,17 +56,13 @@
 </div>
 
 <script>
-    // --- SEGURIDAD: Límite de acceso ---
-    // Si la sesión no está activa, redirigir al index inmediatamente
+    // PRIMERO: VALIDAR SESIÓN
     if (localStorage.getItem('sesionActiva') !== 'true') {
         window.location.href = 'index.html';
     }
 
-    // --- FUNCIÓN: Cerrar Sesión ---
     function cerrarSesion() {
-        localStorage.removeItem('sesionActiva');
-        localStorage.removeItem('userNombre');
-        alert("Sesión cerrada correctamente. ¡Vuelve pronto!");
+        localStorage.clear();
         window.location.href = 'index.html';
     }
 
@@ -128,49 +75,32 @@
 
     function renderRes(lista) {
         const grid = document.getElementById('resGrid');
-        grid.innerHTML = "";
-        lista.forEach(res => {
-            grid.innerHTML += `
-                <div class="res-card">
-                    <div class="status-badge ${res.status}">${res.status}</div>
-                    <div class="res-image" style="background-image: url('${res.img}')"></div>
-                    <div class="res-info">
-                        <h4>${res.nombre}</h4>
-                        <p>🍴 Especialidad: ${res.cat}</p>
-                        <p>🕒 ${res.hora}</p>
-                        <div class="res-actions">
-                            <button class="btn btn-order" onclick="goToMenu('${res.nombre}')">Ver Menú</button>
-                            <button class="btn btn-reserve" onclick="goToReserve('${res.nombre}')">Reservar Mesa</button>
-                        </div>
+        grid.innerHTML = lista.map(res => `
+            <div class="res-card">
+                <div class="res-image" style="background-image: url('${res.img}')"></div>
+                <div class="res-info">
+                    <h4>${res.nombre}</h4>
+                    <p>🍴 Especialidad: ${res.cat}</p>
+                    <div class="res-actions">
+                        <button class="btn btn-order" onclick="window.location.href='menu.html?res=${encodeURIComponent(res.nombre)}'">Ver Menú</button>
+                        <button class="btn btn-reserve" onclick="window.location.href='reserva.html?res=${encodeURIComponent(res.nombre)}'">Reservar</button>
                     </div>
-                </div>`;
-        });
+                </div>
+            </div>`).join('');
     }
 
     function filterBy(cat) {
         document.getElementById('homeBtn').style.display = "block";
-        document.getElementById('currentCategory').innerText = "Lo mejor en " + cat;
-        const filtrados = restaurantes.filter(r => r.cat === cat);
-        renderRes(filtrados);
+        renderRes(restaurantes.filter(r => r.cat === cat));
     }
 
     function showAll() {
         document.getElementById('homeBtn').style.display = "none";
-        document.getElementById('currentCategory').innerText = "Restaurantes Disponibles";
         renderRes(restaurantes);
     }
 
-    function goToMenu(name) { 
-        window.location.href = `menu.html?res=${encodeURIComponent(name)}`; 
-    }
-    
-    function goToReserve(name) { 
-        window.location.href = `reserva.html?res=${encodeURIComponent(name)}`; 
-    }
-
     window.onload = () => {
-        const nombreUsuario = localStorage.getItem('userNombre') || 'Gourmet';
-        document.getElementById('welcomeMsg').innerText = "Hola, " + nombreUsuario;
+        document.getElementById('welcomeMsg').innerText = "Hola, " + (localStorage.getItem('userNombre') || 'Gourmet');
         renderRes(restaurantes);
     };
 </script>

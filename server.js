@@ -6,52 +6,69 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Conexión a MongoDB (Railway usará tu MONGO_URI de las variables de entorno)
+// 1. Conexión a MongoDB Atlas
 const mongoURI = process.env.MONGO_URI; 
 mongoose.connect(mongoURI)
-    .then(() => console.log('✅ Conectado a MongoDB Atlas'))
+    .then(() => console.log('✅ MongoDB Conectado con éxito'))
     .catch(err => console.error('❌ Error de conexión:', err));
 
-// --- MODELOS ---
+// --- 2. MODELOS DE DATOS ---
 
-// Modelo para Usuarios
+// Modelo de Usuario
 const Usuario = mongoose.model('Usuario', new mongoose.Schema({
-    nombre: String, 
-    email: String, 
-    password: String
+    nombre: String,
+    username: String,
+    password: { type: String, required: true }
 }));
 
-// Modelo para Reservas (ESTO ES LO QUE NECESITAS)
+// Modelo de Reserva (ESTO ES LO QUE FALTABA)
 const Reserva = mongoose.model('Reserva', new mongoose.Schema({
     restaurante: String,
     nombreCliente: String,
     personas: Number,
     hora: String,
-    fechaCreacion: { type: Date, default: Date.now }
+    fecha: { type: Date, default: Date.now }
 }));
 
-// --- RUTAS ---
+// --- 3. RUTAS DE USUARIOS ---
 
-// Ruta para Registrar Usuarios
+// RUTA: REGISTRO
 app.post('/register', async (req, res) => {
     try {
         const nuevo = new Usuario(req.body);
         await nuevo.save();
-        res.status(200).json({ msg: "¡Usuario registrado!" });
+        res.status(200).json({ msg: "Registrado", nombre: nuevo.nombre });
     } catch (e) { res.status(500).json({ msg: "Error al registrar" }); }
 });
 
-// Ruta para Guardar Reservas (CONEXIÓN A BASE DE DATOS)
+// RUTA: LOGIN
+app.post('/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const user = await Usuario.findOne({ username, password });
+        
+        if (user) {
+            res.status(200).json({ msg: "Ok", nombre: user.nombre });
+        } else {
+            res.status(401).json({ msg: "Usuario o contraseña incorrectos" });
+        }
+    } catch (e) { res.status(500).json({ msg: "Error en el servidor" }); }
+});
+
+// --- 4. RUTA DE RESERVAS ---
+
+// RUTA: CREAR RESERVA (Conexión directa a MongoDB)
 app.post('/reserve', async (req, res) => {
     try {
         const nuevaReserva = new Reserva(req.body);
-        await nuevaReserva.save(); // Aquí se guarda en Atlas
-        res.status(200).json({ msg: "¡Tu mesa ha sido apartada con éxito!" });
-    } catch (e) { 
-        console.log(e);
-        res.status(500).json({ msg: "No pudimos guardar tu reserva" }); 
+        await nuevaReserva.save();
+        res.status(200).json({ msg: "¡Mesa reservada correctamente!" });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ msg: "Error al procesar la reserva" });
     }
 });
 
+// Iniciar servidor
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Servidor en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));

@@ -13,8 +13,11 @@
         h3 span { color: var(--dark); }
         input { width: 100%; margin: 8px 0; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; outline: none; transition: 0.3s; }
         input:focus { border-color: var(--secondary); }
-        .pass-container { position: relative; }
-        .toggle-btn { position: absolute; right: 12px; top: 18px; cursor: pointer; color: var(--primary); }
+        
+        /* Contenedor del ojito igual que en el login */
+        .pass-container { position: relative; width: 100%; }
+        .toggle-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--primary); font-size: 18px; }
+        
         button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 15px; transition: 0.3s; }
         button:hover { background: var(--secondary); transform: translateY(-2px); }
         .back-link { display: block; text-align: center; margin-top: 20px; color: #666; text-decoration: none; font-size: 14px; }
@@ -34,7 +37,7 @@
             <input type="tel" id="telefono" placeholder="Teléfono" required>
             <div class="pass-container">
                 <input type="password" id="password" placeholder="Contraseña segura" required>
-                <span class="toggle-btn" onclick="const p = document.getElementById('password'); p.type = p.type === 'password' ? 'text' : 'password';">👁️</span>
+                <span class="toggle-btn" onclick="togglePass()">👁️</span>
             </div>
             <button type="submit">Finalizar Registro</button>
             <a href="index.html" class="back-link">¿Ya tienes cuenta? Inicia sesión</a>
@@ -42,6 +45,12 @@
     </div>
 
    <script>
+    // Función para el ojito
+    function togglePass() {
+        const p = document.getElementById('password');
+        p.type = p.type === 'password' ? 'text' : 'password';
+    }
+
     document.getElementById('regForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const data = {
@@ -59,12 +68,25 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
             });
+            
             if(res.ok) {
-                localStorage.setItem('userNombre', data.nombre); // Guarda nombre para el saludo
+                // --- CLAVE DEL ÉXITO ---
+                // 1. Guardamos que la sesión está ACTIVA para que home.html no nos eche
+                localStorage.setItem('sesionActiva', 'true'); 
+                
+                // 2. Guardamos el nombre para el saludo personalizado
+                localStorage.setItem('userNombre', data.nombre); 
+                
                 alert("¡Bienvenido/a a SlotEats!");
-                window.location.href = 'home.html'; // Salto directo al Home
+                
+                // 3. Vamos al Home
+                window.location.href = 'home.html'; 
+            } else {
+                alert("Error al registrar: El usuario ya podría existir.");
             }
-        } catch (error) { alert("Error de conexión"); }
+        } catch (error) { 
+            alert("Error de conexión con el servidor"); 
+        }
     });
 </script>
 </body>
