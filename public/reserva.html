@@ -6,91 +6,43 @@
     <title>Reservar en SlotEats</title>
     <style>
         :root { --primary: #e84118; --secondary: #ff4757; --dark: #2f3542; }
-        body { 
-            font-family: 'Segoe UI', sans-serif; 
-            background: #fef2f2; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-height: 100vh; 
-            margin: 0; 
-        }
-        .form-box { 
-            background: white; 
-            padding: 40px; 
-            border-radius: 25px; 
-            width: 100%;
-            max-width: 350px; 
-            box-shadow: 0 10px 30px rgba(232, 65, 24, 0.1); 
-            text-align: center; 
-        }
+        body { font-family: 'Segoe UI', sans-serif; background: #fef2f2; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .form-box { background: white; padding: 40px; border-radius: 25px; width: 100%; max-width: 350px; box-shadow: 0 10px 30px rgba(232, 65, 24, 0.1); text-align: center; }
         h3 { color: var(--primary); margin-bottom: 10px; font-size: 24px; }
-        #resSub { font-size: 14px; color: #666; margin-bottom: 25px; }
-        
         .input-group { text-align: left; margin-bottom: 15px; }
         label { font-size: 12px; font-weight: bold; color: var(--dark); margin-left: 5px; }
-        
-        input, textarea { 
-            width: 100%; 
-            margin-top: 5px;
-            padding: 14px; 
-            border: 2px solid #eee; 
-            border-radius: 12px; 
-            box-sizing: border-box; 
-            outline: none; 
-            transition: 0.3s;
-            font-size: 15px;
-            font-family: inherit;
-        }
+        input, textarea { width: 100%; margin-top: 5px; padding: 14px; border: 2px solid #eee; border-radius: 12px; box-sizing: border-box; outline: none; font-size: 15px; font-family: inherit; }
         textarea { resize: none; height: 80px; }
         input:focus, textarea:focus { border-color: var(--primary); background: #fffcfc; }
-        
-        button { 
-            width: 100%; 
-            padding: 16px; 
-            background: var(--primary); 
-            color: white; 
-            border: none; 
-            border-radius: 12px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            font-size: 16px;
-            margin-top: 10px; 
-            transition: 0.3s;
-        }
+        button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
         button:hover { background: var(--secondary); transform: translateY(-2px); }
         .back { display: block; margin-top: 20px; color: #999; text-decoration: none; font-size: 14px; }
     </style>
 </head>
 <body>
-
     <div class="form-box">
         <h3 id="resTitle">Reservar</h3>
-        <p id="resSub">Asegura tu lugar en pocos pasos.</p>
+        <p style="color:#666; font-size: 14px; margin-bottom: 25px;">Asegura tu lugar en pocos pasos.</p>
         
         <div class="input-group">
             <label>Nombre de la reserva</label>
             <input type="text" id="nombreCliente" placeholder="¿A nombre de quién?" required>
         </div>
-
         <div class="input-group">
             <label>Número de personas</label>
             <input type="number" id="personas" min="1" max="20" value="2" required>
         </div>
-
         <div class="input-group">
             <label>Fecha</label>
             <input type="date" id="fechaReserva" required>
         </div>
-
         <div class="input-group">
             <label>Hora</label>
             <input type="time" id="hora" required>
         </div>
-
         <div class="input-group">
             <label>Notas adicionales (Opcional)</label>
-            <textarea id="notas" placeholder="Ej: mesa cerca de la ventana, zona terraza, es un cumpleaños..."></textarea>
+            <textarea id="notas" placeholder="Ej: mesa cerca de la ventana, alergias..."></textarea>
         </div>
         
         <button id="btnConfirmar">Confirmar Reserva</button>
@@ -102,6 +54,7 @@
         const restauranteSeleccionado = params.get('res') || "Restaurante";
         document.getElementById('resTitle').innerText = "Reserva en " + restauranteSeleccionado;
 
+        // Bloquear fechas pasadas
         const fechaInput = document.getElementById('fechaReserva');
         fechaInput.setAttribute('min', new Date().toISOString().split('T')[0]);
         fechaInput.value = new Date().toISOString().split('T')[0];
@@ -113,11 +66,11 @@
                 personas: document.getElementById('personas').value,
                 fecha: document.getElementById('fechaReserva').value,
                 hora: document.getElementById('hora').value,
-                notas: document.getElementById('notas').value // Se envía como texto libre
+                notas: document.getElementById('notas').value
             };
 
             if (!data.nombreCliente || !data.personas || !data.fecha || !data.hora) {
-                alert("⚠️ Por favor, completa los campos obligatorios.");
+                alert("⚠️ Por favor, llena los campos obligatorios.");
                 return;
             }
 
@@ -132,10 +85,10 @@
                     alert("🎉 ¡Reserva guardada con éxito!");
                     window.location.href = 'home.html'; 
                 } else {
-                    alert("❌ Error al guardar.");
+                    alert("❌ Error al guardar la reserva.");
                 }
             } catch (error) {
-                alert("🚫 Error de conexión.");
+                alert("🚫 Error de conexión con el servidor.");
             }
         });
     </script>

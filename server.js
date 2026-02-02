@@ -9,44 +9,51 @@ app.use(express.static(path.join(__dirname, 'public')));
 // 1. Conexión a MongoDB Atlas
 const mongoURI = process.env.MONGO_URI; 
 mongoose.connect(mongoURI)
-    .then(() => console.log('✅ MongoDB Conectado con éxito'))
+    .then(() => console.log('✅ MongoDB Conectado: Sistema SlotEats Operativo'))
     .catch(err => console.error('❌ Error de conexión:', err));
 
 // --- 2. MODELOS DE DATOS ---
 
-// Modelo de Usuario
+// Modelo de Usuario (Ahora guarda TODO lo de tu registro.html)
 const Usuario = mongoose.model('Usuario', new mongoose.Schema({
     nombre: String,
-    username: String,
+    apellido: String,
+    username: { type: String, required: true, unique: true },
+    email: String,
+    telefono: String,
     password: { type: String, required: true }
 }));
 
-// Modelo de Reserva (ESTO ES LO QUE FALTABA)
+// Modelo de Reserva (Ahora guarda las NOTAS de tu reserva.html)
 const Reserva = mongoose.model('Reserva', new mongoose.Schema({
     restaurante: String,
     nombreCliente: String,
     personas: Number,
+    fecha: String,
     hora: String,
-    fecha: { type: Date, default: Date.now }
+    notas: String, // <--- Importante para que no se pierdan los comentarios
+    registroFecha: { type: Date, default: Date.now }
 }));
 
-// --- 3. RUTAS DE USUARIOS ---
+// --- 3. RUTAS ---
 
-// RUTA: REGISTRO
+// Registro
 app.post('/register', async (req, res) => {
     try {
         const nuevo = new Usuario(req.body);
         await nuevo.save();
-        res.status(200).json({ msg: "Registrado", nombre: nuevo.nombre });
-    } catch (e) { res.status(500).json({ msg: "Error al registrar" }); }
+        res.status(200).json({ msg: "Registrado con éxito", nombre: nuevo.nombre });
+    } catch (e) { 
+        console.error(e);
+        res.status(500).json({ msg: "Error: El usuario ya existe o faltan datos." }); 
+    }
 });
 
-// RUTA: LOGIN
+// Login
 app.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
         const user = await Usuario.findOne({ username, password });
-        
         if (user) {
             res.status(200).json({ msg: "Ok", nombre: user.nombre });
         } else {
@@ -55,20 +62,17 @@ app.post('/login', async (req, res) => {
     } catch (e) { res.status(500).json({ msg: "Error en el servidor" }); }
 });
 
-// --- 4. RUTA DE RESERVAS ---
-
-// RUTA: CREAR RESERVA (Conexión directa a MongoDB)
+// Reservas
 app.post('/reserve', async (req, res) => {
     try {
         const nuevaReserva = new Reserva(req.body);
         await nuevaReserva.save();
-        res.status(200).json({ msg: "¡Mesa reservada correctamente!" });
+        res.status(200).json({ msg: "¡Reserva guardada!" });
     } catch (e) {
-        console.error(e);
-        res.status(500).json({ msg: "Error al procesar la reserva" });
+        res.status(500).json({ msg: "Error al guardar la reserva" });
     }
 });
 
-// Iniciar servidor
+// Puerto
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Servidor en puerto ${PORT}`));
