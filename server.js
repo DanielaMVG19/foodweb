@@ -72,7 +72,8 @@ app.post('/cancelar-reserva', async (req, res) => {
     } catch (e) { res.status(500).send("Error"); }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-console.log(`🚀 Servidor listo en el puerto ${PORT}`);
+const PORT = process.env.PORT;
+
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor listo en el puerto ${PORT}`);
 });
