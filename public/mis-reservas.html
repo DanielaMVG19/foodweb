@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"><title>Mis Reservas - SlotEats</title>
+    <style>
+        body { font-family: sans-serif; background: #fef2f2; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 15px; margin-bottom: 15px; border-left: 5px solid #e84118; }
+        .btn-del { background: #ff4757; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; }
+        .btn-del:disabled { background: #ccc; }
+    </style>
+</head>
+<body>
+    <h2>Mis Reservas 📅</h2>
+    <div id="lista">Cargando...</div>
+    <script>
+        async function cargar() {
+            const nombre = prompt("Introduce tu nombre para ver tus reservas:");
+            const res = await fetch('/mis-reservas/' + nombre);
+            const datos = await res.json();
+            document.getElementById('lista').innerHTML = datos.map(r => {
+                const dif = (new Date(`${r.fecha}T${r.hora}`) - new Date()) / (1000 * 60 * 60);
+                const puedeCancelar = dif > 2;
+                return `
+                    <div class="card">
+                        <h3>${r.restaurante}</h3>
+                        <p>Fecha: ${r.fecha} | Hora: ${r.hora}</p>
+                        <p><i>Notas: ${r.notas || 'Sin notas'}</i></p>
+                        <button class="btn-del" ${!puedeCancelar ? 'disabled' : ''} onclick="borrar('${r._id}')">
+                            ${puedeCancelar ? 'Cancelar Reserva' : 'No se puede cancelar (Muy pronto)'}
+                        </button>
+                    </div>`;
+            }).join('');
+        }
+        async function borrar(id) {
+            if(confirm("¿Seguro que quieres cancelar?")) {
+                await fetch('/cancelar-reserva', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id })
+                });
+                location.reload();
+            }
+        }
+        cargar();
+    </script>
+</body>
+</html>

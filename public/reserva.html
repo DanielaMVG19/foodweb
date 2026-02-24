@@ -18,6 +18,7 @@
         .btn-qr { background: var(--success); }
         .back { display: block; margin-top: 20px; color: #999; text-decoration: none; font-size: 14px; }
         #qrDisplay img { margin-top: 15px; border: 8px solid #f9f9f9; border-radius: 10px; width: 180px; }
+        .info-timer { font-size: 12px; color: #666; margin-top: 10px; background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #ffebeb; }
     </style>
 </head>
 <body>
@@ -51,8 +52,10 @@
 
         <div id="qrSeccion" style="display:none;">
             <div id="qrDisplay"></div>
-            <button id="btnGenerarQR" class="btn-qr">Generar Código QR</button>
-            <p style="font-size: 11px; color: #888; margin-top: 10px;">Válido por 24 horas</p>
+            <div id="controlQR">
+                <p class="info-timer">ℹ️ Recuerda: Solo puedes generar un código QR cada 24 horas por reserva.</p>
+                <button id="btnGenerarQR" class="btn-qr">Solicitar Código QR</button>
+            </div>
         </div>
 
         <a href="home.html" class="back">⬅ Volver al inicio</a>
@@ -63,8 +66,9 @@
         const restauranteSeleccionado = params.get('res') || "Restaurante";
         document.getElementById('resTitle').innerText = "Reserva en " + restauranteSeleccionado;
         
-        let idNuevaReserva = null; // Guardará el ID que devuelva Mongo
+        let idNuevaReserva = null;
 
+        // 1. CONFIRMAR RESERVA
         document.getElementById('btnConfirmar').addEventListener('click', async () => {
             const data = {
                 restaurante: restauranteSeleccionado,
@@ -75,6 +79,8 @@
                 notas: document.getElementById('notas').value
             };
 
+            if(!data.nombreCliente || !data.fecha || !data.hora) return alert("Completa los campos obligatorios");
+
             try {
                 const response = await fetch('/reserve', {
                     method: 'POST',
@@ -84,15 +90,16 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    idNuevaReserva = result.id; // Guardamos el ID de la BD
-                    alert("🎉 ¡Reserva guardada con éxito!");
+                    idNuevaReserva = result.id; 
+                    alert("🎉 ¡Reserva guardada!");
                     document.getElementById('resForm').style.display = 'none';
-                    document.getElementById('subTitle').innerText = "Reserva confirmada. ¡Genera tu pase!";
+                    document.getElementById('subTitle').innerText = "Estado: Pendiente de validación.";
                     document.getElementById('qrSeccion').style.display = 'block';
                 }
-            } catch (error) { alert("Error de conexión"); }
+            } catch (error) { alert("Error al conectar con el servidor"); }
         });
 
+        // 2. SOLICITAR QR (Aquí el servidor aplicará el bloqueo de 24h)
         document.getElementById('btnGenerarQR').addEventListener('click', async () => {
             try {
                 const response = await fetch('/generar-qr', {
@@ -100,15 +107,20 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ reservaId: idNuevaReserva })
                 });
+                
                 const result = await response.json();
 
                 if (response.ok) {
+                    // Si el servidor lo permite (pasaron 24h o es el primero)
                     document.getElementById('qrDisplay').innerHTML = `<img src="${result.qrImagen}">`;
-                    document.getElementById('btnGenerarQR').style.display = 'none';
+                    document.getElementById('controlQR').innerHTML = "<p style='color:var(--success); font-weight:bold;'>✅ Pase generado con éxito</p>";
                 } else {
-                    alert(result.msg);
+                    // Si el servidor bloquea (faltan horas para cumplir las 24h)
+                    alert(result.msg); 
                 }
-            } catch (e) { alert("Error al generar QR"); }
+            } catch (e) { 
+                alert("Error al procesar la solicitud del QR"); 
+            }
         });
     </script>
 </body>
