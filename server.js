@@ -8,7 +8,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // CONEXIÓN DIRECTA A TU MONGODB
-const mongoURI = "mongodb+srv://whosmarny:Dnxlsmth.6@cluster0.eazfo3x.mongodb.net/test?retryWrites=true&w=majority";
+const mongoURI = process.env.MONGO_URI;
 
 mongoose.connect(mongoURI)
     .then(() => console.log('✅ MongoDB Conectado: Sistema SlotEats Operativo'))
@@ -73,4 +73,6 @@ app.post('/cancelar-reserva', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Puerto: ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+console.log(`🚀 Servidor listo en el puerto ${PORT}`);
+});
