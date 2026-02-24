@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reservar en SlotEats</title>
     <style>
-        :root { --primary: #e84118; --secondary: #ff4757; --dark: #2f3542; }
+        :root { --primary: #e84118; --secondary: #ff4757; --dark: #2f3542; --success: #27ae60; }
         body { font-family: 'Segoe UI', sans-serif; background: #fef2f2; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .form-box { background: white; padding: 40px; border-radius: 25px; width: 100%; max-width: 350px; box-shadow: 0 10px 30px rgba(232, 65, 24, 0.1); text-align: center; }
         h3 { color: var(--primary); margin-bottom: 10px; font-size: 24px; }
@@ -13,39 +13,48 @@
         label { font-size: 12px; font-weight: bold; color: var(--dark); margin-left: 5px; }
         input, textarea { width: 100%; margin-top: 5px; padding: 14px; border: 2px solid #eee; border-radius: 12px; box-sizing: border-box; outline: none; font-size: 15px; font-family: inherit; }
         textarea { resize: none; height: 80px; }
-        input:focus, textarea:focus { border-color: var(--primary); background: #fffcfc; }
-        button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; margin-top: 10px; }
         button:hover { background: var(--secondary); transform: translateY(-2px); }
+        .btn-qr { background: var(--success); }
         .back { display: block; margin-top: 20px; color: #999; text-decoration: none; font-size: 14px; }
+        #qrDisplay img { margin-top: 15px; border: 8px solid #f9f9f9; border-radius: 10px; width: 180px; }
     </style>
 </head>
 <body>
-    <div class="form-box">
+    <div class="form-box" id="contenido">
         <h3 id="resTitle">Reservar</h3>
-        <p style="color:#666; font-size: 14px; margin-bottom: 25px;">Asegura tu lugar en pocos pasos.</p>
+        <p id="subTitle" style="color:#666; font-size: 14px; margin-bottom: 25px;">Asegura tu lugar en pocos pasos.</p>
         
-        <div class="input-group">
-            <label>Nombre de la reserva</label>
-            <input type="text" id="nombreCliente" placeholder="¿A nombre de quién?" required>
+        <div id="resForm">
+            <div class="input-group">
+                <label>Nombre de la reserva</label>
+                <input type="text" id="nombreCliente" placeholder="¿A nombre de quién?" required>
+            </div>
+            <div class="input-group">
+                <label>Número de personas</label>
+                <input type="number" id="personas" min="1" max="20" value="2" required>
+            </div>
+            <div class="input-group">
+                <label>Fecha</label>
+                <input type="date" id="fechaReserva" required>
+            </div>
+            <div class="input-group">
+                <label>Hora</label>
+                <input type="time" id="hora" required>
+            </div>
+            <div class="input-group">
+                <label>Notas adicionales (Opcional)</label>
+                <textarea id="notas" placeholder="Ej: mesa en terraza..."></textarea>
+            </div>
+            <button id="btnConfirmar">Confirmar Reserva</button>
         </div>
-        <div class="input-group">
-            <label>Número de personas</label>
-            <input type="number" id="personas" min="1" max="20" value="2" required>
+
+        <div id="qrSeccion" style="display:none;">
+            <div id="qrDisplay"></div>
+            <button id="btnGenerarQR" class="btn-qr">Generar Código QR</button>
+            <p style="font-size: 11px; color: #888; margin-top: 10px;">Válido por 24 horas</p>
         </div>
-        <div class="input-group">
-            <label>Fecha</label>
-            <input type="date" id="fechaReserva" required>
-        </div>
-        <div class="input-group">
-            <label>Hora</label>
-            <input type="time" id="hora" required>
-        </div>
-        <div class="input-group">
-            <label>Notas adicionales (Opcional)</label>
-            <textarea id="notas" placeholder="Ej: mesa en zona terraza, cumpleaños..."></textarea>
-        </div>
-        
-        <button id="btnConfirmar">Confirmar Reserva</button>
+
         <a href="home.html" class="back">⬅ Volver al inicio</a>
     </div>
 
@@ -53,11 +62,8 @@
         const params = new URLSearchParams(window.location.search);
         const restauranteSeleccionado = params.get('res') || "Restaurante";
         document.getElementById('resTitle').innerText = "Reserva en " + restauranteSeleccionado;
-
-        // Bloquear fechas pasadas
-        const fechaInput = document.getElementById('fechaReserva');
-        fechaInput.setAttribute('min', new Date().toISOString().split('T')[0]);
-        fechaInput.value = new Date().toISOString().split('T')[0];
+        
+        let idNuevaReserva = null; // Guardará el ID que devuelva Mongo
 
         document.getElementById('btnConfirmar').addEventListener('click', async () => {
             const data = {
@@ -69,27 +75,40 @@
                 notas: document.getElementById('notas').value
             };
 
-            if (!data.nombreCliente || !data.personas || !data.fecha || !data.hora) {
-                alert("⚠️ Por favor, llena los campos obligatorios.");
-                return;
-            }
-
             try {
                 const response = await fetch('/reserve', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
+                const result = await response.json();
 
                 if (response.ok) {
+                    idNuevaReserva = result.id; // Guardamos el ID de la BD
                     alert("🎉 ¡Reserva guardada con éxito!");
-                    window.location.href = 'home.html'; 
-                } else {
-                    alert("❌ Error al guardar la reserva.");
+                    document.getElementById('resForm').style.display = 'none';
+                    document.getElementById('subTitle').innerText = "Reserva confirmada. ¡Genera tu pase!";
+                    document.getElementById('qrSeccion').style.display = 'block';
                 }
-            } catch (error) {
-                alert("🚫 Error de conexión con el servidor.");
-            }
+            } catch (error) { alert("Error de conexión"); }
+        });
+
+        document.getElementById('btnGenerarQR').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/generar-qr', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reservaId: idNuevaReserva })
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('qrDisplay').innerHTML = `<img src="${result.qrImagen}">`;
+                    document.getElementById('btnGenerarQR').style.display = 'none';
+                } else {
+                    alert(result.msg);
+                }
+            } catch (e) { alert("Error al generar QR"); }
         });
     </script>
 </body>
