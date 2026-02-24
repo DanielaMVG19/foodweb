@@ -8,7 +8,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // 1. Conexión a MongoDB Atlas
-const mongoURI = process.env.MONGO_URI; 
+const mongoURI = "mongodb+srv://whosmarny:Dnxlsmth.6@cluster0.eazfo3x.mongodb.net/test?retryWrites=true&w=majority";
 mongoose.connect(mongoURI)
     .then(() => console.log('✅ MongoDB Conectado: Sistema SlotEats Operativo'))
     .catch(err => console.error('❌ Error de conexión:', err));
