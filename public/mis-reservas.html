@@ -4,40 +4,48 @@
     <meta charset="UTF-8"><title>Mis Reservas - SlotEats</title>
     <style>
         body { font-family: sans-serif; background: #fef2f2; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 15px; margin-bottom: 15px; border-left: 5px solid #e84118; }
-        .btn-del { background: #ff4757; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; }
-        .btn-del:disabled { background: #ccc; }
+        .card { background: white; padding: 20px; border-radius: 15px; margin-bottom: 15px; border-left: 5px solid #e84118; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .btn-cancel { background: #ff4757; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; }
+        .btn-cancel:disabled { background: #ccc; }
     </style>
 </head>
 <body>
     <h2>Mis Reservas 📅</h2>
-    <div id="lista">Cargando...</div>
+    <div id="lista">Cargando tus citas...</div>
+    <a href="home.html" style="display:block; margin-top:20px; color:#e84118;">⬅ Volver al Inicio</a>
+
     <script>
         async function cargar() {
-            const nombre = prompt("Introduce tu nombre para ver tus reservas:");
+            const nombre = localStorage.getItem('userNombre'); // Usa el nombre del Login
+            if(!nombre) return location.href = 'index.html';
+
             const res = await fetch('/mis-reservas/' + nombre);
-            const datos = await res.json();
-            document.getElementById('lista').innerHTML = datos.map(r => {
-                const dif = (new Date(`${r.fecha}T${r.hora}`) - new Date()) / (1000 * 60 * 60);
-                const puedeCancelar = dif > 2;
+            const reservas = await res.json();
+            
+            document.getElementById('lista').innerHTML = reservas.map(r => {
+                const cita = new Date(`${r.fecha}T${r.hora}`);
+                const horasFaltantes = (cita - new Date()) / (1000 * 60 * 60);
+                const puedeCancelar = horasFaltantes > 2;
+
                 return `
                     <div class="card">
                         <h3>${r.restaurante}</h3>
-                        <p>Fecha: ${r.fecha} | Hora: ${r.hora}</p>
+                        <p><strong>Fecha:</strong> ${r.fecha} | <strong>Hora:</strong> ${r.hora}</p>
                         <p><i>Notas: ${r.notas || 'Sin notas'}</i></p>
-                        <button class="btn-del" ${!puedeCancelar ? 'disabled' : ''} onclick="borrar('${r._id}')">
-                            ${puedeCancelar ? 'Cancelar Reserva' : 'No se puede cancelar (Muy pronto)'}
+                        <button class="btn-cancel" ${!puedeCancelar ? 'disabled' : ''} onclick="borrar('${r._id}')">
+                            ${puedeCancelar ? 'Cancelar Reserva' : 'Bloqueado (Falta poco)'}
                         </button>
                     </div>`;
             }).join('');
         }
+
         async function borrar(id) {
             if(confirm("¿Seguro que quieres cancelar?")) {
                 await fetch('/cancelar-reserva', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ id })
                 });
-                location.reload();
+                cargar();
             }
         }
         cargar();

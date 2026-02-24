@@ -62,6 +62,12 @@
     </div>
 
     <script>
+        // --- LÓGICA DE BLOQUEO DE FECHAS ---
+        const inputFecha = document.getElementById('fechaReserva');
+        // Establecer el día actual como el mínimo para el calendario
+        const hoy = new Date().toISOString().split('T')[0];
+        inputFecha.setAttribute('min', hoy);
+
         const params = new URLSearchParams(window.location.search);
         const restauranteSeleccionado = params.get('res') || "Restaurante";
         document.getElementById('resTitle').innerText = "Reserva en " + restauranteSeleccionado;
@@ -70,16 +76,29 @@
 
         // 1. CONFIRMAR RESERVA
         document.getElementById('btnConfirmar').addEventListener('click', async () => {
+            const fechaVal = inputFecha.value;
+            const horaVal = document.getElementById('hora').value;
+
+            // Validación de seguridad: Comprobar que la fecha/hora no sea del pasado
+            const ahora = new Date();
+            const fechaSeleccionada = new Date(`${fechaVal}T${horaVal}`);
+
+            if(!document.getElementById('nombreCliente').value || !fechaVal || !horaVal) {
+                return alert("Completa los campos obligatorios");
+            }
+
+            if (fechaSeleccionada < ahora) {
+                return alert("❌ La fecha u hora seleccionada ya ha pasado. Por favor, elige una cita válida.");
+            }
+
             const data = {
                 restaurante: restauranteSeleccionado,
                 nombreCliente: document.getElementById('nombreCliente').value,
                 personas: document.getElementById('personas').value,
-                fecha: document.getElementById('fechaReserva').value,
-                hora: document.getElementById('hora').value,
+                fecha: fechaVal,
+                hora: horaVal,
                 notas: document.getElementById('notas').value
             };
-
-            if(!data.nombreCliente || !data.fecha || !data.hora) return alert("Completa los campos obligatorios");
 
             try {
                 const response = await fetch('/reserve', {
@@ -99,7 +118,7 @@
             } catch (error) { alert("Error al conectar con el servidor"); }
         });
 
-        // 2. SOLICITAR QR (Aquí el servidor aplicará el bloqueo de 24h)
+        // 2. SOLICITAR QR
         document.getElementById('btnGenerarQR').addEventListener('click', async () => {
             try {
                 const response = await fetch('/generar-qr', {
@@ -111,11 +130,9 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    // Si el servidor lo permite (pasaron 24h o es el primero)
                     document.getElementById('qrDisplay').innerHTML = `<img src="${result.qrImagen}">`;
                     document.getElementById('controlQR').innerHTML = "<p style='color:var(--success); font-weight:bold;'>✅ Pase generado con éxito</p>";
                 } else {
-                    // Si el servidor bloquea (faltan horas para cumplir las 24h)
                     alert(result.msg); 
                 }
             } catch (e) { 
