@@ -13,7 +13,7 @@
             --success: #27ae60; 
             --warning: #f1c40f;
             --gold: #fbc531; 
-            --ice: #74b9ff; /* Nuevo color para el frío */
+            --ice: #74b9ff;
         }
         
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #fafafa; color: var(--dark); overflow-x: hidden; }
@@ -25,7 +25,6 @@
         
         .user-controls { display: flex; align-items: center; gap: 12px; }
         
-        /* Botones de Navegación con Efecto de Brillo */
         .btn-nav { padding: 8px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 13px; text-decoration: none; transition: 0.3s; border: none; display: flex; align-items: center; gap: 5px; position: relative; overflow: hidden; }
         
         .btn-ranking { background: var(--gold); color: var(--dark); }
@@ -35,10 +34,11 @@
         }
         @keyframes shine { 0% { left: -60%; } 20% { left: 120%; } 100% { left: 120%; } }
 
+        /* Estilo para los botones de navegación */
         .btn-my-reservations { background: var(--light); color: var(--primary); border: 2px solid var(--primary); }
+        .btn-my-orders { background: var(--primary); color: white; } /* Color naranja para pedidos */
         .btn-logout { background: #f1f2f6; color: var(--secondary); }
 
-        /* Dashboard de Ranking (Panel Lateral) */
         #rankingPanel {
             position: fixed; top: 0; right: -400px; width: 350px; height: 100%;
             background: white; z-index: 2000; box-shadow: -5px 0 25px rgba(0,0,0,0.15);
@@ -55,10 +55,8 @@
         .rank-bar-bg { background: #eee; height: 8px; border-radius: 4px; width: 100%; margin-top: 5px; overflow: hidden; }
         .rank-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 4px; width: 0%; transition: width 1s ease-out; }
         
-        /* Estilo para la demanda baja */
         .low-demand-bar { background: linear-gradient(90deg, var(--ice), #a29bfe) !important; }
 
-        /* Estilos de Restaurantes (Grid) */
         .categories-container { background: white; padding: 20px 0; border-bottom: 1px solid #eee; }
         .categories-list { display: flex; overflow-x: auto; padding: 0 25px; gap: 20px; scrollbar-width: none; }
         .cat-item { min-width: 75px; text-align: center; cursor: pointer; transition: 0.3s; }
@@ -93,7 +91,10 @@
     <div class="user-controls">
         <div id="welcomeMsg" style="font-weight: 600; color: var(--primary); margin-right: 10px;">Hola, Gourmet</div>
         <button class="btn-nav btn-ranking" onclick="toggleRanking()">⭐ Ranking</button>
+        
+        <a href="pedidos.html" class="btn-nav btn-my-orders">🥡 Mis Pedidos</a>
         <a href="mis-reservas.html" class="btn-nav btn-my-reservations">📅 Reservas</a>
+        
         <button class="btn-nav btn-logout" onclick="cerrarSesion()">Salir 🚪</button>
     </div>
 </header>
@@ -168,20 +169,17 @@
                 const response = await fetch('/stats-ranking');
                 const data = await response.json();
 
-                // Render Top Restaurantes
                 document.getElementById('topRes').innerHTML = data.topRestaurantes.map(r => `
                     <div style="margin-bottom:15px;">
                         <div class="rank-item"><span>${r.nombre}</span> <span>${r.cantidad} citas</span></div>
                         <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${r.porcentaje}%"></div></div>
                     </div>`).join('');
 
-                // Render Top Comidas
                 document.getElementById('topFood').innerHTML = data.topComidas.map(f => `
                     <div class="rank-item" style="background:#fff5f5; padding:8px; border-radius:8px; margin-bottom:8px;">
                         <span>📍 ${f.nombre}</span> <b style="color:var(--primary);">${f.pedidos} pts</b>
                     </div>`).join('');
 
-                // Render Menos Solicitados (El Frío ❄️)
                 if(data.menosSolicitados) {
                     document.getElementById('lowRes').innerHTML = data.menosSolicitados.map(r => `
                         <div style="margin-bottom:15px;">
