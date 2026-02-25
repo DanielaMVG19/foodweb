@@ -24,10 +24,16 @@
         
         .user-controls { display: flex; align-items: center; gap: 12px; }
         
-        /* Botones de Navegación */
-        .btn-nav { padding: 8px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 13px; text-decoration: none; transition: 0.3s; border: none; display: flex; align-items: center; gap: 5px; }
+        /* Botones de Navegación con Efecto de Brillo */
+        .btn-nav { padding: 8px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 13px; text-decoration: none; transition: 0.3s; border: none; display: flex; align-items: center; gap: 5px; position: relative; overflow: hidden; }
+        
         .btn-ranking { background: var(--gold); color: var(--dark); }
-        .btn-ranking:hover { transform: scale(1.05); box-shadow: 0 4px 10px rgba(251, 197, 49, 0.4); }
+        .btn-ranking::after {
+            content: ''; position: absolute; top: -50%; left: -60%; width: 20%; height: 200%;
+            background: rgba(255, 255, 255, 0.4); transform: rotate(30deg); animation: shine 3s infinite;
+        }
+        @keyframes shine { 0% { left: -60%; } 20% { left: 120%; } 100% { left: 120%; } }
+
         .btn-my-reservations { background: var(--light); color: var(--primary); border: 2px solid var(--primary); }
         .btn-logout { background: #f1f2f6; color: var(--secondary); }
 
@@ -44,10 +50,10 @@
         .rank-section { margin-bottom: 30px; }
         .rank-section h3 { font-size: 18px; border-bottom: 2px solid var(--light); padding-bottom: 10px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
         
-        .rank-item { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 14px; }
+        .rank-item { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 14px; font-weight: 600; }
         .rank-bar-bg { background: #eee; height: 8px; border-radius: 4px; width: 100%; margin-top: 5px; overflow: hidden; }
-        .rank-bar-fill { height: 100%; background: var(--primary); border-radius: 4px; }
-        .low-demand { background: #95a5a6 !important; } /* Para los menos pedidos */
+        .rank-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 4px; width: 0%; transition: width 1s ease-out; }
+        .low-demand { background: #95a5a6 !important; }
 
         /* Estilos de Restaurantes (Grid) */
         .categories-container { background: white; padding: 20px 0; border-bottom: 1px solid #eee; }
@@ -61,16 +67,17 @@
         
         .res-card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05); position: relative; transition: 0.3s; }
         .res-image { width: 100%; height: 180px; background-size: cover; background-position: center; }
-        .status-badge { position: absolute; top: 15px; right: 15px; padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: bold; color: white; }
+        .status-badge { position: absolute; top: 15px; right: 15px; padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: bold; color: white; text-transform: capitalize; }
         .badge-disponible { background: var(--success); }
         .badge-saturado { background: var(--warning); color: var(--dark); }
         .badge-cerrado { background: #95a5a6; }
 
         .res-info { padding: 20px; }
         .res-actions { display: flex; gap: 10px; margin-top: 15px; }
-        .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 13px; }
+        .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s; }
         .btn-order { background: var(--primary); color: white; }
         .btn-reserve { background: white; color: var(--primary); border: 2px solid var(--primary); }
+        .btn:hover { transform: translateY(-2px); opacity: 0.9; }
     </style>
 </head>
 <body>
@@ -95,20 +102,18 @@
         <button onclick="toggleRanking()" style="border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
     </div>
 
-    <div class="rank-section">
-        <h3>🏆 Top 5 Restaurantes</h3>
-        <div id="topRes">
-            </div>
-    </div>
+    <div id="rankingLoader" style="text-align:center; padding:20px; display:none;">Cargando datos reales...</div>
 
-    <div class="rank-section">
-        <h3>🔥 Top Comidas</h3>
-        <div id="topFood"></div>
-    </div>
+    <div id="statsContent">
+        <div class="rank-section">
+            <h3>🏆 Top 5 Restaurantes</h3>
+            <div id="topRes"></div>
+        </div>
 
-    <div class="rank-section">
-        <h3>❄️ Menos Solicitados</h3>
-        <div id="lowRes"></div>
+        <div class="rank-section">
+            <h3>🔥 Top Comidas</h3>
+            <div id="topFood"></div>
+        </div>
     </div>
 </div>
 
@@ -127,81 +132,68 @@
 </div>
 
 <script>
-    // Verificación de sesión
-    if (localStorage.getItem('sesionActiva') !== 'true') {
-        window.location.href = 'index.html';
-    }
+    if (localStorage.getItem('sesionActiva') !== 'true') window.location.href = 'index.html';
 
-    function cerrarSesion() {
-        localStorage.clear();
-        window.location.href = 'index.html';
-    }
+    function cerrarSesion() { localStorage.clear(); window.location.href = 'index.html'; }
 
     const restaurantes = [
-        { nombre: "Burger Galaxy", cat: "Hamburguesas", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500", status: "disponible", horario: "12:00 PM - 11:00 PM", dias: "Lun - Dom" },
-        { nombre: "Pizza Nostra", cat: "Pizza", img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500", status: "saturado", horario: "02:00 PM - 10:00 PM", dias: "Mar - Dom" },
-        { nombre: "Sushi Master", cat: "Sushi", img: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500", status: "disponible", horario: "01:00 PM - 11:00 PM", dias: "Lun - Sáb" },
-        { nombre: "Chicken House", cat: "Pollo", img: "https://images.unsplash.com/photo-1626082866744-32fe3e0850ff?w=500", status: "cerrado", horario: "11:00 AM - 09:00 PM", dias: "Lun - Vie" }
+        { nombre: "Burger Galaxy", cat: "Hamburguesas", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500", status: "disponible", horario: "12:00 PM - 11:00 PM" },
+        { nombre: "Pizza Nostra", cat: "Pizza", img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500", status: "saturado", horario: "02:00 PM - 10:00 PM" },
+        { nombre: "Sushi Master", cat: "Sushi", img: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500", status: "disponible", horario: "01:00 PM - 11:00 PM" },
+        { nombre: "Chicken House", cat: "Pollo", img: "https://images.unsplash.com/photo-1626082866744-32fe3e0850ff?w=500", status: "cerrado", horario: "11:00 AM - 09:00 PM" }
     ];
 
-    // DATOS DE RANKING (Simulados)
-    const stats = {
-        topRestaurantes: [
-            { nombre: "Burger Galaxy", porcentaje: 95 },
-            { nombre: "Sushi Master", porcentaje: 88 },
-            { nombre: "Pizza Nostra", porcentaje: 75 },
-            { nombre: "Chicken House", porcentaje: 60 },
-            { nombre: "Tacos El Profe", porcentaje: 55 }
-        ],
-        topComidas: [
-            { nombre: "Monster Burger", pedidos: 450 },
-            { nombre: "Roll Philadelphia", pedidos: 380 },
-            { nombre: "Pizza Peperoni", pedidos: 310 }
-        ],
-        menosSolicitados: [
-            { nombre: "Ensaladas Fit", porcentaje: 15 },
-            { nombre: "Sopa de Col", porcentaje: 8 }
-        ]
-    };
-
-    function toggleRanking() {
+    async function toggleRanking() {
         const panel = document.getElementById('rankingPanel');
         const overlay = document.getElementById('rankingOverlay');
+        const loader = document.getElementById('rankingLoader');
+        const content = document.getElementById('statsContent');
+
         panel.classList.toggle('active');
         overlay.style.display = panel.classList.contains('active') ? 'block' : 'none';
-        if(panel.classList.contains('active')) renderStats();
-    }
 
-    function renderStats() {
-        document.getElementById('topRes').innerHTML = stats.topRestaurantes.map(r => `
-            <div style="margin-bottom:15px;">
-                <div class="rank-item"><span>${r.nombre}</span> <span>${r.porcentaje}%</span></div>
-                <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${r.porcentaje}%"></div></div>
-            </div>`).join('');
+        if (panel.classList.contains('active')) {
+            loader.style.display = "block";
+            content.style.opacity = "0.3";
+            
+            try {
+                const response = await fetch('/stats-ranking');
+                const data = await response.json();
 
-        document.getElementById('topFood').innerHTML = stats.topComidas.map(f => `
-            <div class="rank-item"><span>📍 ${f.nombre}</span> <b>${f.pedidos} ord.</b></div>`).join('');
+                // Render Top Restaurantes
+                document.getElementById('topRes').innerHTML = data.topRestaurantes.map(r => `
+                    <div style="margin-bottom:15px;">
+                        <div class="rank-item"><span>${r.nombre}</span> <span>${r.cantidad} citas</span></div>
+                        <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${r.porcentaje}%"></div></div>
+                    </div>`).join('');
 
-        document.getElementById('lowRes').innerHTML = stats.menosSolicitados.map(r => `
-            <div style="margin-bottom:15px;">
-                <div class="rank-item"><span>${r.nombre}</span> <span>${r.porcentaje}%</span></div>
-                <div class="rank-bar-bg"><div class="rank-bar-fill low-demand" style="width:${r.porcentaje}%"></div></div>
-            </div>`).join('');
+                // Render Top Comidas
+                document.getElementById('topFood').innerHTML = data.topComidas.map(f => `
+                    <div class="rank-item" style="background:#fff5f5; padding:8px; border-radius:8px; margin-bottom:8px;">
+                        <span>📍 ${f.nombre}</span> <b style="color:var(--primary);">${f.pedidos} pts</b>
+                    </div>`).join('');
+
+                content.style.opacity = "1";
+            } catch (e) {
+                console.error("Error cargando stats");
+            } finally {
+                loader.style.display = "none";
+            }
+        }
     }
 
     function renderRes(lista) {
-        const grid = document.getElementById('resGrid');
-        grid.innerHTML = lista.map(res => `
+        document.getElementById('resGrid').innerHTML = lista.map(res => `
             <div class="res-card">
                 <div class="status-badge badge-${res.status}">${res.status}</div>
                 <div class="res-image" style="background-image: url('${res.img}')"></div>
                 <div class="res-info">
-                    <h4>${res.nombre}</h4>
-                    <p><span>🍴</span> ${res.cat}</p>
-                    <p><span>🕒</span> ${res.horario}</p>
+                    <h4 style="margin:0 0 10px 0;">${res.nombre}</h4>
+                    <p style="font-size:13px; color:#666; margin:5px 0;">🍴 ${res.cat}</p>
+                    <p style="font-size:13px; color:#666; margin:5px 0;">🕒 ${res.horario}</p>
                     <div class="res-actions">
                         <button class="btn btn-order" onclick="window.location.href='menu.html?res=${encodeURIComponent(res.nombre)}'">Ver Menú</button>
-                        <button class="btn btn-reserve" ${res.status === 'cerrado' ? 'disabled style="opacity:0.5;"' : ''} 
+                        <button class="btn btn-reserve" ${res.status === 'cerrado' ? 'disabled style="opacity:0.4;"' : ''} 
                             onclick="window.location.href='reserva.html?res=${encodeURIComponent(res.nombre)}'">Reservar</button>
                     </div>
                 </div>
@@ -221,8 +213,7 @@
     }
 
     window.onload = () => {
-        const nombre = localStorage.getItem('userNombre') || 'Gourmet';
-        document.getElementById('welcomeMsg').innerText = "Hola, " + nombre;
+        document.getElementById('welcomeMsg').innerText = "Hola, " + (localStorage.getItem('userNombre') || 'Gourmet');
         renderRes(restaurantes);
     };
 </script>

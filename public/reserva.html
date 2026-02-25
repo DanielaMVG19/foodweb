@@ -3,104 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reservar en SlotEats</title>
+    <title>Reservar - SlotEats</title>
     <style>
-        :root { --primary: #e84118; --secondary: #ff4757; --dark: #2f3542; --success: #27ae60; }
-        body { font-family: 'Segoe UI', sans-serif; background: #fef2f2; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .form-box { background: white; padding: 40px; border-radius: 25px; width: 100%; max-width: 350px; box-shadow: 0 10px 30px rgba(232, 65, 24, 0.1); text-align: center; }
-        h3 { color: var(--primary); margin-bottom: 10px; font-size: 24px; }
-        .input-group { text-align: left; margin-bottom: 15px; }
-        label { font-size: 12px; font-weight: bold; color: var(--dark); margin-left: 5px; }
-        input, textarea { width: 100%; margin-top: 5px; padding: 14px; border: 2px solid #eee; border-radius: 12px; box-sizing: border-box; outline: none; font-size: 15px; font-family: inherit; }
-        textarea { resize: none; height: 80px; }
-        button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; margin-top: 10px; }
-        button:hover { background: var(--secondary); transform: translateY(-2px); }
+        :root { --primary: #e84118; --secondary: #ff4757; --dark: #2f3542; --success: #27ae60; --light: #fef2f2; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--light); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        
+        .form-box { background: white; padding: 35px; border-radius: 30px; width: 100%; max-width: 400px; box-shadow: 0 15px 35px rgba(232, 65, 24, 0.1); text-align: center; border: 1px solid rgba(232, 65, 24, 0.05); }
+        h3 { color: var(--primary); margin: 0 0 5px 0; font-size: 26px; font-weight: 800; }
+        
+        .input-group { text-align: left; margin-bottom: 18px; }
+        label { font-size: 13px; font-weight: 700; color: var(--dark); margin-left: 5px; display: block; margin-bottom: 6px; }
+        
+        input, textarea { width: 100%; padding: 14px; border: 2px solid #f1f2f6; border-radius: 15px; box-sizing: border-box; outline: none; font-size: 15px; transition: 0.3s; font-family: inherit; }
+        input:focus, textarea:focus { border-color: var(--primary); background: #fffcfb; }
+        
+        textarea { resize: none; height: 85px; }
+        
+        button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 15px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; margin-top: 10px; box-shadow: 0 4px 15px rgba(232, 65, 24, 0.2); }
+        button:hover { background: var(--secondary); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(232, 65, 24, 0.3); }
+        button:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+
         .btn-qr { background: var(--success); }
-        .back { display: block; margin-top: 20px; color: #999; text-decoration: none; font-size: 14px; }
-        #qrDisplay img { margin-top: 15px; border: 8px solid #f9f9f9; border-radius: 10px; width: 180px; }
-        .info-timer { font-size: 12px; color: #666; margin-top: 10px; background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #ffebeb; }
+        .back { display: block; margin-top: 25px; color: #a4b0be; text-decoration: none; font-size: 14px; font-weight: 600; }
+        .back:hover { color: var(--primary); }
+
+        #qrDisplay img { margin-top: 20px; border: 10px solid #f9f9f9; border-radius: 20px; width: 200px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .info-timer { font-size: 12px; color: #666; margin-top: 15px; background: #fff5f5; padding: 12px; border-radius: 12px; border: 1px dashed var(--primary); line-height: 1.4; }
+
+        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
-    <div class="form-box" id="contenido">
+    <div class="form-box">
         <h3 id="resTitle">Reservar</h3>
-        <p id="subTitle" style="color:#666; font-size: 14px; margin-bottom: 25px;">Asegura tu lugar en pocos pasos.</p>
+        <p id="subTitle" style="color:#747d8c; font-size: 14px; margin-bottom: 30px;">¡Estás a un paso de una gran experiencia!</p>
         
         <div id="resForm">
             <div class="input-group">
-                <label>Nombre de la reserva</label>
-                <input type="text" id="nombreCliente" placeholder="¿A nombre de quién?" required>
+                <label>Nombre del Comensal</label>
+                <input type="text" id="nombreCliente" placeholder="Ej: Juan Pérez" required>
+            </div>
+            <div style="display: flex; gap: 15px;">
+                <div class="input-group" style="flex: 1;">
+                    <label>Personas</label>
+                    <input type="number" id="personas" min="1" max="20" value="2" required>
+                </div>
+                <div class="input-group" style="flex: 1;">
+                    <label>Hora</label>
+                    <input type="time" id="hora" required>
+                </div>
             </div>
             <div class="input-group">
-                <label>Número de personas</label>
-                <input type="number" id="personas" min="1" max="20" value="2" required>
-            </div>
-            <div class="input-group">
-                <label>Fecha</label>
+                <label>Fecha de la Cita</label>
                 <input type="date" id="fechaReserva" required>
             </div>
             <div class="input-group">
-                <label>Hora</label>
-                <input type="time" id="hora" required>
+                <label>Notas para el restaurante</label>
+                <textarea id="notas" placeholder="Ej: Mesa cerca de la ventana, alergia al gluten..."></textarea>
             </div>
-            <div class="input-group">
-                <label>Notas adicionales (Opcional)</label>
-                <textarea id="notas" placeholder="Ej: mesa en terraza..."></textarea>
-            </div>
-            <button id="btnConfirmar">Confirmar Reserva</button>
+            <button id="btnConfirmar">Confirmar Reserva 🍕</button>
         </div>
 
         <div id="qrSeccion" style="display:none;">
             <div id="qrDisplay"></div>
             <div id="controlQR">
-                <p class="info-timer">ℹ️ Recuerda: Solo puedes generar un código QR cada 24 horas por reserva.</p>
+                <p class="info-timer"><b>🎟 Ticket Digital:</b> Genera tu QR ahora o búscalo después en "Mis Reservas". Solo 1 QR cada 24h.</p>
                 <button id="btnGenerarQR" class="btn-qr">Solicitar Código QR</button>
             </div>
         </div>
 
-        <a href="home.html" class="back">⬅ Volver al inicio</a>
+        <a href="home.html" class="back">⬅ Volver al Menú Principal</a>
     </div>
 
     <script>
-        // --- LÓGICA DE BLOQUEO DE FECHAS ---
+        // 1. Configuración Inicial
         const inputFecha = document.getElementById('fechaReserva');
-        // Establecer el día actual como el mínimo para el calendario
         const hoy = new Date().toISOString().split('T')[0];
         inputFecha.setAttribute('min', hoy);
+        inputFecha.value = hoy;
+
+        // Rellenar nombre automáticamente
+        const userNombre = localStorage.getItem('userNombre') || "";
+        document.getElementById('nombreCliente').value = userNombre;
 
         const params = new URLSearchParams(window.location.search);
         const restauranteSeleccionado = params.get('res') || "Restaurante";
-        document.getElementById('resTitle').innerText = "Reserva en " + restauranteSeleccionado;
+        document.getElementById('resTitle').innerText = restauranteSeleccionado;
         
         let idNuevaReserva = null;
 
-        // ... (mismo código de arriba hasta la parte de confirmar reserva)
-
-        // 1. CONFIRMAR RESERVA
+        // 2. Lógica de Confirmación
         document.getElementById('btnConfirmar').addEventListener('click', async () => {
+            const btn = document.getElementById('btnConfirmar');
             const fechaVal = inputFecha.value;
             const horaVal = document.getElementById('hora').value;
-            const emailUsuario = localStorage.getItem('userEmail'); // <--- NUEVO: Obtenemos el email
+            const emailUsuario = localStorage.getItem('userEmail');
 
-            if (!emailUsuario) {
-                return alert("Debes estar logueado para reservar.");
+            if (!emailUsuario) return alert("Por favor, inicia sesión de nuevo.");
+            if (!document.getElementById('nombreCliente').value || !fechaVal || !horaVal) {
+                return alert("⚠️ Por favor rellena los campos de fecha y hora.");
             }
 
+            // Validar que no sea una fecha pasada
             const ahora = new Date();
             const fechaSeleccionada = new Date(`${fechaVal}T${horaVal}`);
-
-            if(!document.getElementById('nombreCliente').value || !fechaVal || !horaVal) {
-                return alert("Completa los campos obligatorios");
-            }
-
             if (fechaSeleccionada < ahora) {
-                return alert("❌ La fecha u hora seleccionada ya ha pasado.");
+                return alert("❌ No puedes viajar al pasado. Elige una fecha futura.");
             }
+
+            btn.disabled = true;
+            btn.innerText = "Guardando...";
 
             const data = {
                 restaurante: restauranteSeleccionado,
                 nombreCliente: document.getElementById('nombreCliente').value,
-                emailCliente: emailUsuario, // <--- CLAVE: Se envía a MongoDB para ligar la reserva
+                emailCliente: emailUsuario,
                 personas: document.getElementById('personas').value,
                 fecha: fechaVal,
                 hora: horaVal,
@@ -117,15 +134,21 @@
 
                 if (response.ok) {
                     idNuevaReserva = result.id; 
-                    alert("🎉 ¡Reserva guardada!");
                     document.getElementById('resForm').style.display = 'none';
-                    document.getElementById('subTitle').innerText = "Reserva confirmada.";
+                    document.getElementById('subTitle').innerText = "✅ ¡Todo listo! Tu mesa te espera.";
                     document.getElementById('qrSeccion').style.display = 'block';
+                } else {
+                    alert("Error: " + result.msg);
+                    btn.disabled = false;
+                    btn.innerText = "Confirmar Reserva 🍕";
                 }
-            } catch (error) { alert("Error al conectar con el servidor"); }
+            } catch (error) { 
+                alert("Error de conexión"); 
+                btn.disabled = false;
+            }
         });
-// ... (resto del script igual)
-        // 2. SOLICITAR QR
+
+        // 3. Generación de QR
         document.getElementById('btnGenerarQR').addEventListener('click', async () => {
             try {
                 const response = await fetch('/generar-qr', {
@@ -133,18 +156,15 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ reservaId: idNuevaReserva })
                 });
-                
                 const result = await response.json();
 
                 if (response.ok) {
                     document.getElementById('qrDisplay').innerHTML = `<img src="${result.qrImagen}">`;
-                    document.getElementById('controlQR').innerHTML = "<p style='color:var(--success); font-weight:bold;'>✅ Pase generado con éxito</p>";
+                    document.getElementById('controlQR').innerHTML = "<p style='color:var(--success); font-weight:bold; margin-top:15px;'>✅ Pase generado. ¡Tómale captura!</p>";
                 } else {
                     alert(result.msg); 
                 }
-            } catch (e) { 
-                alert("Error al procesar la solicitud del QR"); 
-            }
+            } catch (e) { alert("Error al generar QR"); }
         });
     </script>
 </body>

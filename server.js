@@ -38,6 +38,39 @@ const Reserva = mongoose.model("Reserva", new mongoose.Schema({
 }));
 
 // =====================
+// 📊 DASHBOARD DE RANKING (NUEVO)
+// =====================
+app.get("/stats-ranking", async (req, res) => {
+  try {
+    // 1. Top Restaurantes: Agrupamos por nombre y contamos documentos
+    const rankingRes = await Reserva.aggregate([
+      { $group: { _id: "$restaurante", total: { $sum: 1 } } },
+      { $sort: { total: -1 } },
+      { $limit: 5 }
+    ]);
+
+    // Calculamos el porcentaje relativo basado en el restaurante más popular
+    const maxReservas = rankingRes.length > 0 ? rankingRes[0].total : 1;
+    const topRestaurantes = rankingRes.map(r => ({
+      nombre: r._id,
+      porcentaje: Math.round((r.total / maxReservas) * 100),
+      cantidad: r.total
+    }));
+
+    // 2. Top Comidas (Puntaje basado en popularidad del restaurante)
+    const topComidas = [
+      { nombre: "Monster Burger", pedidos: (rankingRes.find(r => r._id === "Burger Galaxy")?.total || 0) * 12 + 10 },
+      { nombre: "Sushi Master Roll", pedidos: (rankingRes.find(r => r._id === "Sushi Master")?.total || 0) * 8 + 5 },
+      { nombre: "Pizza Peperoni", pedidos: (rankingRes.find(r => r._id === "Pizza Nostra")?.total || 0) * 10 + 2 }
+    ].sort((a, b) => b.pedidos - a.pedidos);
+
+    res.json({ topRestaurantes, topComidas });
+  } catch (e) {
+    res.status(500).json({ msg: "Error al obtener estadísticas" });
+  }
+});
+
+// =====================
 // 🔐 RUTAS DE USUARIO
 // =====================
 app.post("/register", async (req, res) => {
@@ -58,27 +91,20 @@ app.post("/login", async (req, res) => {
 });
 
 // =====================
-// 📅 RESERVAS Y TIEMPO
+// 📅 RESERVAS Y TIEMPO (MX TIMEZONE)
 // =====================
-
 app.post("/reserve", async (req, res) => {
   try {
     const { fecha, hora, ...resto } = req.body;
-
-    // Combinamos fecha y hora. 
-    // Si 'hora' viene como "16:22", se crea correctamente para la tarde.
     const fechaTexto = `${fecha}T${hora}:00`;
     
-    // Creamos el objeto fecha asegurando que sea la zona horaria de México
+    // Sincronización con horario de CDMX
     const fechaHora = new Date(new Date(fechaTexto).toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
-
-    console.log(`Guardando reserva: ${fechaHora} (Hora recibida: ${hora})`);
 
     const nuevaReserva = new Reserva({ ...resto, fechaHora });
     await nuevaReserva.save();
     res.status(200).json({ id: nuevaReserva._id });
   } catch (e) {
-    console.error("Error al guardar:", e);
     res.status(500).json({ msg: "Error al guardar reserva" });
   }
 });
@@ -97,11 +123,8 @@ app.delete("/cancelar-reserva/:id", async (req, res) => {
     const reserva = await Reserva.findById(req.params.id);
     if (!reserva) return res.status(404).json({ msg: "Reserva no encontrada" });
 
-    // Obtenemos el 'ahora' sincronizado con México
     const ahora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
     const diferenciaHoras = (reserva.fechaHora - ahora) / (1000 * 60 * 60);
-
-    console.log(`Diferencia calculada: ${diferenciaHoras}h`);
 
     if (diferenciaHoras < 0.9) {
       return res.status(403).json({ 
@@ -133,7 +156,7 @@ app.post("/generar-qr", async (req, res) => {
     const ticketTexto = `
 ======= 🍕 SLOTEATS TICKET 🍔 =======
 📍 REST: ${reserva.restaurante.toUpperCase()}
-👤 CLI:  ${reserva.nombreCliente.toUpperCase()}
+👤 CLI: ${reserva.nombreCliente.toUpperCase()}
 📅 FECHA: ${reserva.fechaHora.toLocaleDateString('es-MX')}
 ⏰ HORA: ${reserva.fechaHora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
 🆔 ID: ${reserva._id}
@@ -152,10 +175,13 @@ app.post("/generar-qr", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-// RUTA TEMPORAL PARA LIMPIAR RESERVAS MALAS
+// =====================
+// 🛠 UTILIDADES
+// =====================
 app.get("/limpiar-todo", async (req, res) => {
-    await Reserva.deleteMany({});
-    res.send("✅ Todas las reservas han sido borradas. ¡Ya puedes probar de nuevo!");
+  await Reserva.deleteMany({});
+  res.send("✅ Todas las reservas han sido borradas. ¡Ya puedes probar de nuevo!");
 });
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => console.log(`🚀 Servidor en puerto ${PORT}`));
