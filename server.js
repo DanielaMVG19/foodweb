@@ -4,15 +4,25 @@ const path = require('path');
 const QRCode = require('qrcode');
 const app = express();
 
+// Middlewares
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// CONEXIÓN DIRECTA A TU MONGODB
+// CONEXIÓN A MONGODB
 const mongoURI = process.env.MONGO_URI;
 
 mongoose.connect(mongoURI)
     .then(() => console.log('✅ MongoDB Conectado: Sistema SlotEats Operativo'))
     .catch(err => console.error('❌ Error de conexión:', err));
+
+// --- MODELOS ---
+
+// MODELO DE USUARIO
+const Usuario = mongoose.model('Usuario', new mongoose.Schema({
+    nombre: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true }
+}));
 
 // MODELO DE RESERVA
 const Reserva = mongoose.model('Reserva', new mongoose.Schema({
@@ -26,13 +36,50 @@ const Reserva = mongoose.model('Reserva', new mongoose.Schema({
     ultimoQRGenerado: { type: Date, default: null }
 }));
 
-// RUTAS DE RESERVA Y QR
+// --- RUTAS DE AUTENTICACIÓN ---
+
+// Ruta de Registro (Para crear usuarios nuevos)
+app.post('/register', async (req, res) => {
+    try {
+        const nuevoUsuario = new Usuario(req.body);
+        await nuevoUsuario.save();
+        res.status(201).json({ msg: "Usuario creado con éxito", nombre: nuevoUsuario.nombre });
+    } catch (e) {
+        res.status(400).json({ msg: "Error al registrar (el email podría ya existir)" });
+    }
+});
+
+// Ruta de Login (Soluciona el error de 'undefined')
+app.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const usuario = await Usuario.findOne({ email: email });
+
+        if (!usuario || usuario.password !== password) {
+            return res.status(401).json({ msg: "Credenciales inválidas" });
+        }
+
+        // Enviamos el nombre real para que el frontend lo muestre
+        res.json({ 
+            msg: "Bienvenido", 
+            nombre: usuario.nombre, 
+            email: usuario.email 
+        });
+    } catch (e) {
+        res.status(500).json({ msg: "Error en el servidor" });
+    }
+});
+
+// --- RUTAS DE RESERVA Y QR ---
+
 app.post('/reserve', async (req, res) => {
     try {
         const nuevaReserva = new Reserva(req.body);
         await nuevaReserva.save();
         res.status(200).json({ msg: "¡Reserva guardada!", id: nuevaReserva._id });
-    } catch (e) { res.status(500).json({ msg: "Error al guardar" }); }
+    } catch (e) { 
+        res.status(500).json({ msg: "Error al guardar" }); 
+    }
 });
 
 app.post('/generar-qr', async (req, res) => {
@@ -47,45 +94,38 @@ app.post('/generar-qr', async (req, res) => {
             if (dif < 24) return res.status(403).json({ msg: `Espera ${Math.ceil(24-dif)}h para otro QR` });
         }
 
-        // TEXTO DEL QR INCLUYENDO NOTAS
         const dataQR = `SLOTEATS RESERVA\nRest: ${reserva.restaurante}\nCliente: ${reserva.nombreCliente}\nPersonas: ${reserva.personas}\nFecha: ${reserva.fecha} ${reserva.hora}\nNotas: ${reserva.notas || 'Ninguna'}`;
         
         const qrImagen = await QRCode.toDataURL(dataQR);
         reserva.ultimoQRGenerado = ahora;
         await reserva.save();
         res.json({ qrImagen });
-    } catch (e) { res.status(500).json({ msg: "Error QR" }); }
+    } catch (e) { 
+        res.status(500).json({ msg: "Error QR" }); 
+    }
 });
 
-// RUTAS DE MIS RESERVAS Y CANCELACIÓN
 app.get('/mis-reservas/:nombre', async (req, res) => {
     try {
         const lista = await Reserva.find({ nombreCliente: req.params.nombre }).sort({ registroFecha: -1 });
         res.json(lista);
-    } catch (e) { res.status(500).send("Error"); }
+    } catch (e) { 
+        res.status(500).send("Error"); 
+    }
 });
 
 app.post('/cancelar-reserva', async (req, res) => {
     try {
         await Reserva.findByIdAndDelete(req.body.id);
         res.json({ msg: "Cancelada" });
-    } catch (e) { res.status(500).send("Error"); }
+    } catch (e) { 
+        res.status(500).send("Error"); 
+    }
 });
 
-const PORT = process.env.PORT;
+// PUERTO (Railway usa process.env.PORT)
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     console.log(`🚀 Servidor listo en el puerto ${PORT}`);
-});
-// Agrega esto debajo de tus otras rutas POST (como /reserve)
-app.post('/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        // AQUÍ DEBERÍAS BUSCAR AL USUARIO EN LA BASE DE DATOS
-        // Por ahora, solo responderemos un OK para que no de error 404
-        console.log("Intento de login:", email);
-        res.json({ msg: "Login recibido (falta implementar lógica)" });
-    } catch (e) {
-        res.status(500).json({ msg: "Error en el servidor" });
-    }
 });
