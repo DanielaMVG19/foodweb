@@ -15,7 +15,7 @@
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #fafafa; padding-bottom: 80px; }
         
         /* Header y Volver */
-        header { background: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); sticky; top:0; z-index:100; }
+        header { background: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top:0; z-index:100; }
         .btn-back { cursor: pointer; font-weight: bold; color: var(--primary); text-decoration: none; }
 
         /* Grid de Comida */
@@ -59,13 +59,13 @@
         }
         #cartPanel.active { right: 0; }
         .cart-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
-        .btn-remove { color: var(--secondary); background: none; border: none; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .btn-remove { color: #ff4757; background: none; border: none; cursor: pointer; font-size: 12px; font-weight: bold; }
 
         /* Inputs Profesionales */
         .checkout-form input { 
-            width: 100%; padding: 10px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box;
+            width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-family: inherit;
         }
-        .btn-geo { background: #f1f2f6; border: none; padding: 8px; border-radius: 8px; font-size: 12px; cursor: pointer; width: 100%; margin-bottom: 10px; }
+        .btn-geo { background: #f1f2f6; border: none; padding: 10px; border-radius: 8px; font-size: 12px; cursor: pointer; width: 100%; margin-bottom: 10px; font-weight: bold; color: var(--dark); }
         
         .btn-pay { 
             background: var(--success); color: white; border: none; width: 100%; padding: 15px; 
@@ -79,7 +79,7 @@
 <header>
     <a href="home.html" class="btn-back">⬅ Volver</a>
     <div id="restauranteTitulo" style="font-weight: 900; font-size: 20px;">Menú</div>
-    <div></div>
+    <div style="width: 30px;"></div>
 </header>
 
 <div class="menu-container" id="menuLista">
@@ -98,7 +98,7 @@
         </div>
 
     <div class="checkout-form">
-        <hr>
+        <hr style="border: 0; border-top: 1px solid #eee;">
         <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:20px; margin:15px 0;">
             <span>Total:</span> <span id="cartTotal">$0.00</span>
         </div>
@@ -110,23 +110,30 @@
 </div>
 
 <script>
-    // 1. Datos de comida (Simulados por ahora)
-    const platillos = [
+    // 1. Datos de comida (Se filtran por restaurante en URL)
+    const platillosBase = [
         { id: 1, nombre: "Monster Burger", desc: "Doble carne, tocino y mucho queso.", precio: 150, res: "Burger Galaxy" },
         { id: 2, nombre: "Pizza Peperoni", desc: "Masa artesanal y extra queso.", precio: 180, res: "Pizza Nostra" },
         { id: 3, nombre: "Sushi Master Roll", desc: "Salmón fresco y aguacate.", precio: 220, res: "Sushi Master" },
-        { id: 4, nombre: "Alitas BBQ", desc: "12 piezas crujientes.", precio: 130, res: "Chicken House" }
+        { id: 4, nombre: "Alitas BBQ", desc: "12 piezas crujientes.", precio: 130, res: "Chicken House" },
+        { id: 5, nombre: "Tacos al Pastor", desc: "Orden de 5 con piña y salsa.", precio: 95, res: "Taco Planet" }
     ];
 
     let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
 
-    // 2. Renderizar menú
+    // 2. Renderizar menú dinámico
     function cargarMenu() {
         const urlParams = new URLSearchParams(window.location.search);
         const resNombre = urlParams.get('res');
-        if(resNombre) document.getElementById('restauranteTitulo').innerText = resNombre;
+        
+        if(resNombre) {
+            document.getElementById('restauranteTitulo').innerText = resNombre;
+        }
 
-        const html = platillos.map(p => `
+        // Si el restaurante de la URL coincide, mostramos sus platos, sino mostramos todos
+        const listaFiltrada = resNombre ? platillosBase.filter(p => p.res === resNombre) : platillosBase;
+
+        const html = listaFiltrada.map(p => `
             <div class="food-card">
                 <div class="food-info">
                     <h3>${p.nombre}</h3>
@@ -136,18 +143,25 @@
                 <button class="btn-add" onclick="agregarAlCarrito(${p.id})">Agregar +</button>
             </div>
         `).join('');
-        document.getElementById('menuLista').innerHTML = html;
+        
+        document.getElementById('menuLista').innerHTML = html || "<p>No hay platillos disponibles para este restaurante.</p>";
+        
+        // Autocompletar nombre si hay sesión iniciada
+        const usuarioSesion = JSON.parse(localStorage.getItem('usuario'));
+        if(usuarioSesion) {
+            document.getElementById('nombrePedido').value = usuarioSesion.nombre;
+        }
+
         actualizarInterfazCarrito();
     }
 
     // 3. Lógica del Carrito
     function agregarAlCarrito(id) {
-        const producto = platillos.find(p => p.id === id);
-        carrito.push(producto);
+        const producto = platillosBase.find(p => p.id === id);
+        carrito.push({...producto, fechaAgregado: new Date()});
         localStorage.setItem('carrito', JSON.stringify(carrito));
         actualizarInterfazCarrito();
         
-        // Efecto visual de rebote en la bolsita
         const float = document.querySelector('.cart-float');
         float.style.transform = "scale(1.2)";
         setTimeout(() => float.style.transform = "scale(1)", 200);
@@ -190,27 +204,63 @@
             document.getElementById('cartPanel').classList.contains('active') ? 'block' : 'none';
     }
 
-    // 4. Extras Profesionales
     function obtenerUbicacion() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(pos => {
                 const { latitude, longitude } = pos.coords;
-                document.getElementById('ubicacionManual').value = `Ubicación GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-                alert("📍 Ubicación obtenida correctamente.");
+                document.getElementById('ubicacionManual').value = `${latitude.toFixed(4)}, ${longitude.toFixed(4)} (GPS)`;
+                alert("📍 Ubicación GPS capturada.");
+            }, () => {
+                alert("No se pudo obtener la ubicación. Por favor escríbela.");
             });
         }
     }
 
-    function finalizarPedido() {
+    // 4. Conexión Real con Server.js
+    async function finalizarPedido() {
         const nombre = document.getElementById('nombrePedido').value;
-        if (!nombre || carrito.length === 0) return alert("Por favor agrega comida y tu nombre.");
+        const ubi = document.getElementById('ubicacionManual').value;
+        const usuarioSesion = JSON.parse(localStorage.getItem('usuario'));
+
+        if (!nombre || carrito.length === 0 || !ubi) {
+            return alert("Por favor completa tu nombre, dirección y agrega comida.");
+        }
+
+        const totalPedido = carrito.reduce((s, p) => s + p.precio, 0);
         
-        alert(`🚀 ¡Pedido enviado, ${nombre}!\nTotal: ${document.getElementById('cartTotal').innerText}\nPreparando tus ${carrito.length} platillos.`);
-        
-        // Limpiar carrito
-        carrito = [];
-        localStorage.removeItem('carrito');
-        window.location.href = "home.html";
+        // Simulamos distancia para la lógica de cancelación (entre 1 y 10 km)
+        const distanciaSimulada = Math.floor(Math.random() * 10) + 1;
+
+        const pedidoData = {
+            nombreCliente: nombre,
+            emailCliente: usuarioSesion ? usuarioSesion.email : "invitado@mail.com",
+            items: carrito,
+            total: totalPedido,
+            ubicacion: ubi,
+            distanciaKm: distanciaSimulada
+        };
+
+        try {
+            const response = await fetch('/enviar-pedido', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pedidoData)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(`🚀 ¡Pedido enviado con éxito!\nDistancia estimada: ${distanciaSimulada}km`);
+                carrito = [];
+                localStorage.removeItem('carrito');
+                window.location.href = "pedidos.html"; // Te redirige a la nueva página de pedidos
+            } else {
+                alert("Error: " + result.msg);
+            }
+        } catch (error) {
+            console.error(error);
+            alert("No se pudo conectar con el servidor.");
+        }
     }
 
     window.onload = cargarMenu;

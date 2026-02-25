@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Pedidos - SlotEats</title>
+    <style>
+        :root {
+            --primary: #e84118;
+            --dark: #2f3542;
+            --gray: #f1f2f6;
+            --success: #2ed573;
+            --danger: #ff4757;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: #f8f9fa; margin: 0; padding: 20px; }
+        header { max-width: 600px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: space-between; }
+        .btn-back { text-decoration: none; color: var(--primary); font-weight: bold; }
+
+        .container { max-width: 600px; margin: 0 auto; }
+        
+        .pedido-card {
+            background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); position: relative;
+            border-left: 6px solid var(--primary);
+        }
+
+        .status-badge {
+            position: absolute; top: 20px; right: 20px;
+            padding: 5px 12px; border-radius: 20px; font-size: 12px;
+            font-weight: bold; background: var(--gray); color: var(--dark);
+        }
+
+        .pedido-id { font-size: 12px; color: #aaa; margin-bottom: 5px; }
+        .pedido-title { font-size: 18px; font-weight: bold; margin: 0 0 10px 0; }
+        
+        .items-lista { font-size: 14px; color: #666; margin-bottom: 15px; }
+        .total-price { font-size: 20px; font-weight: 900; color: var(--dark); }
+
+        .info-envio {
+            background: var(--gray); border-radius: 10px; padding: 10px;
+            margin: 15px 0; font-size: 13px; display: flex; justify-content: space-between;
+        }
+
+        .cancel-section { border-top: 1px solid #eee; padding-top: 15px; display: flex; align-items: center; justify-content: space-between; }
+        
+        .timer-text { font-size: 12px; color: #ff7f50; font-weight: bold; }
+
+        .btn-cancelar {
+            background: var(--danger); color: white; border: none; padding: 10px 15px;
+            border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s;
+        }
+
+        .btn-cancelar:disabled { background: #ccc; cursor: not-allowed; }
+
+        .empty-state { text-align: center; margin-top: 50px; color: #999; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="home.html" class="btn-back">⬅ Volver al Inicio</a>
+    <h2 style="margin:0;">Mis Pedidos</h2>
+</header>
+
+<div class="container" id="contenedorPedidos">
+    </div>
+
+<script>
+    const usuarioSesion = JSON.parse(localStorage.getItem('usuario'));
+    const emailUsuario = usuarioSesion ? usuarioSesion.email : "invitado@mail.com";
+
+    async function cargarPedidos() {
+        try {
+            const response = await fetch(`/mis-pedidos/${emailUsuario}`);
+            const pedidos = await response.json();
+            const contenedor = document.getElementById('contenedorPedidos');
+
+            if (pedidos.length === 0) {
+                contenedor.innerHTML = `<div class="empty-state">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2762/2762885.png" width="100" style="opacity:0.3"><br>
+                    <p>Aún no has pedido nada delicioso.</p>
+                </div>`;
+                return;
+            }
+
+            contenedor.innerHTML = pedidos.map(p => {
+                const fechaPedido = new Date(p.fecha);
+                const ahora = new Date();
+                const minutosTranscurridos = (ahora - fechaPedido) / 60000;
+                
+                // Lógica Pro: Tiempo límite basado en distancia (2 min si es cerca, 5 min si es lejos)
+                const tiempoLimite = p.distanciaKm < 2 ? 2 : 5;
+                const canCancel = minutosTranscurridos < tiempoLimite;
+                const tiempoRestante = Math.ceil(tiempoLimite - minutosTranscurridos);
+
+                return `
+                    <div class="pedido-card">
+                        <div class="status-badge">${p.estatus}</div>
+                        <div class="pedido-id">Orden #${p._id.slice(-6).toUpperCase()}</div>
+                        <div class="pedido-title">Pedido de ${p.items.length} productos</div>
+                        
+                        <div class="items-lista">
+                            ${p.items.map(item => item.nombre).join(', ')}
+                        </div>
+
+                        <div class="total-price">$${p.total.toFixed(2)}</div>
+
+                        <div class="info-envio">
+                            <span>📍 ${p.ubicacion.slice(0, 25)}...</span>
+                            <span>🚚 ${p.distanciaKm} km</span>
+                        </div>
+
+                        <div class="cancel-section">
+                            <div class="timer-text">
+                                ${canCancel ? `⏳ Tienes ${tiempoRestante} min para cancelar` : '✅ En preparación'}
+                            </div>
+                            <button 
+                                class="btn-cancelar" 
+                                ${!canCancel ? 'disabled' : ''} 
+                                onclick="confirmarCancelacion('${p._id}')">
+                                ${canCancel ? 'Cancelar' : 'Cocinando...'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+        } catch (error) {
+            console.error("Error cargando pedidos:", error);
+        }
+    }
+
+    async function confirmarCancelacion(id) {
+        if (confirm("¿Seguro que quieres cancelar tu pedido? Esta acción no se puede deshacer.")) {
+            try {
+                const response = await fetch(`/cancelar-pedido/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert("Pedido cancelado. El dinero (simulado) ha sido devuelto.");
+                    cargarPedidos(); // Recargar lista
+                } else {
+                    alert(result.msg);
+                }
+            } catch (error) {
+                alert("Error al conectar con el servidor.");
+            }
+        }
+    }
+
+    // Carga inicial
+    cargarPedidos();
+
+    // Actualización automática cada 15 segundos para refrescar los timers
+    setInterval(cargarPedidos, 15000);
+
+</script>
+
+</body>
+</html>
