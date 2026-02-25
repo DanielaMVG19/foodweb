@@ -124,21 +124,23 @@ app.delete('/cancelar-reserva/:id', async (req, res) => {
         const reserva = await Reserva.findById(req.params.id);
         if (!reserva) return res.status(404).json({ msg: "Reserva no encontrada" });
 
-        // Calculamos la hora de la cita en milisegundos
-        const cita = new Date(`${reserva.fecha}T${reserva.hora}`).getTime();
-        const ahora = Date.now(); // Hora exacta actual
-        
-        // 3600000 ms = 1 hora
-        const diferenciaMs = cita - ahora;
+        // Combinamos fecha y hora y creamos un objeto Date
+        const fechaCita = new Date(`${reserva.fecha}T${reserva.hora}:00`);
+        const ahora = new Date();
 
-        if (diferenciaMs < 3600000) {
-            return res.status(403).json({ msg: "Falta menos de 1 hora. Llama al restaurante para cancelar." });
+        // Calculamos la diferencia en milisegundos
+        const diferenciaMs = fechaCita.getTime() - ahora.getTime();
+        const unaHoraEnMs = 60 * 60 * 1000;
+
+        // Si la diferencia es menor a una hora
+        if (diferenciaMs < unaHoraEnMs) {
+            return res.status(403).json({ msg: "Falta menos de 1 hora o la fecha ya pasó. Llama al restaurante." });
         }
 
         await Reserva.findByIdAndDelete(req.params.id);
         res.json({ msg: "Reserva cancelada correctamente" });
     } catch (e) {
-        res.status(500).json({ msg: "Error al cancelar" });
+        res.status(500).json({ msg: "Error al procesar la cancelación" });
     }
 });
 

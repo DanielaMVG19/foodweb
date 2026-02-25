@@ -167,22 +167,26 @@
             window.location.href = "login.html";
         }
 
-        function calcularDiferencia(fecha, hora) {
-            const ahora = new Date();
-            const cita = new Date(`${fecha}T${hora}`);
-            const diffMs = cita - ahora;
-            
-            if (diffMs < 0) return { mensaje: "Evento finalizado", puedeCancelar: false };
+       function calcularDiferencia(fecha, hora) {
+    // Creamos las fechas asegurando que el navegador las lea igual que el servidor
+    const ahora = new Date().getTime();
+    const cita = new Date(`${fecha}T${hora}:00`).getTime();
+    
+    const diffMs = cita - ahora;
+    
+    if (diffMs <= 0) {
+        return { mensaje: "Reserva en curso o finalizada", puedeCancelar: false };
+    }
 
-            const horas = Math.floor(diffMs / (1000 * 60 * 60));
-            const minutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-            
-            return {
-                mensaje: `Faltan: ${horas}h ${minutos}m`,
-                puedeCancelar: (diffMs / (1000 * 60 * 60)) >= 1
-            };
-        }
-
+    const diffHrs = diffMs / (1000 * 60 * 60);
+    const horas = Math.floor(diffHrs);
+    const minutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return {
+        mensaje: `Faltan: ${horas}h ${minutos}m`,
+        puedeCancelar: diffHrs >= 1 // Solo puede cancelar si falta 1 hora o más
+    };
+}
         async function cargarReservas() {
             const contenedor = document.getElementById('listaReservas');
             try {
