@@ -2,27 +2,25 @@ const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
 const QRCode = require('qrcode');
-require('dotenv').config(); // Asegúrate de tener instalado dotenv: npm install dotenv
 
 const app = express();
 
-// Middlewares
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// CONEXIÓN A MONGODB
+// CONEXIÓN
 const mongoURI = process.env.MONGO_URI;
-
 mongoose.connect(mongoURI)
     .then(() => console.log('✅ MongoDB Conectado: Sistema SlotEats Operativo'))
     .catch(err => console.error('❌ Error de conexión:', err));
 
-// --- MODELOS ---
-
-// MODELO DE USUARIO
+// --- MODELO DE USUARIO AMPLIADO ---
 const Usuario = mongoose.model('Usuario', new mongoose.Schema({
     nombre: { type: String, required: true },
+    apellido: String,
+    username: { type: String, unique: true },
     email: { type: String, required: true, unique: true },
+    telefono: String,
     password: { type: String, required: true }
 }));
 
@@ -38,21 +36,30 @@ const Reserva = mongoose.model('Reserva', new mongoose.Schema({
     ultimoQRGenerado: { type: Date, default: null }
 }));
 
-// --- RUTAS DE AUTENTICACIÓN ---
-
-// REGISTRO: Crea un usuario nuevo
+// --- RUTA DE REGISTRO CORREGIDA ---
 app.post('/register', async (req, res) => {
     try {
-        const { nombre, email, password } = req.body;
-        const nuevoUsuario = new Usuario({ nombre, email, password });
+        // Recibimos todos los datos que envías desde tu registro.html
+        const { nombre, apellido, username, email, telefono, password } = req.body;
+        
+        const nuevoUsuario = new Usuario({ 
+            nombre, 
+            apellido, 
+            username, 
+            email, 
+            telefono, 
+            password 
+        });
+
         await nuevoUsuario.save();
         res.status(201).json({ msg: "Registro exitoso", nombre: nuevoUsuario.nombre });
     } catch (e) {
-        res.status(400).json({ msg: "El email ya está registrado o faltan datos." });
+        console.log("Error en registro:", e);
+        res.status(400).json({ msg: "Error: El email o username ya existen." });
     }
 });
 
-// LOGIN: Busca al usuario y devuelve su nombre
+// LOGIN
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -62,7 +69,6 @@ app.post('/login', async (req, res) => {
             return res.status(401).json({ msg: "Credenciales inválidas" });
         }
 
-        // Enviamos el nombre para que el frontend lo guarde
         res.json({ 
             msg: "Bienvenido", 
             nombre: usuario.nombre, 
@@ -73,8 +79,7 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// --- RUTAS DE RESERVA Y QR ---
-
+// RESERVAS
 app.post('/reserve', async (req, res) => {
     try {
         const nuevaReserva = new Reserva(req.body);
@@ -83,28 +88,5 @@ app.post('/reserve', async (req, res) => {
     } catch (e) { res.status(500).json({ msg: "Error al guardar" }); }
 });
 
-app.post('/generar-qr', async (req, res) => {
-    try {
-        const { reservaId } = req.body;
-        const reserva = await Reserva.findById(reservaId);
-        if (!reserva) return res.status(404).json({ msg: "No encontrada" });
-
-        const ahora = new Date();
-        const dataQR = `SLOTEATS RESERVA\nRest: ${reserva.restaurante}\nCliente: ${reserva.nombreCliente}\nFecha: ${reserva.fecha} ${reserva.hora}`;
-        
-        const qrImagen = await QRCode.toDataURL(dataQR);
-        reserva.ultimoQRGenerado = ahora;
-        await reserva.save();
-        res.json({ qrImagen });
-    } catch (e) { res.status(500).json({ msg: "Error QR" }); }
-});
-
-app.get('/mis-reservas/:nombre', async (req, res) => {
-    try {
-        const lista = await Reserva.find({ nombreCliente: req.params.nombre }).sort({ registroFecha: -1 });
-        res.json(lista);
-    } catch (e) { res.status(500).send("Error"); }
-});
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Servidor en puerto ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Servidor en puerto ${PORT}`));
