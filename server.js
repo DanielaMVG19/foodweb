@@ -77,3 +77,15 @@ const PORT = process.env.PORT;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor listo en el puerto ${PORT}`);
 });
+// Agrega esto debajo de tus otras rutas POST (como /reserve)
+app.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        // AQUÍ DEBERÍAS BUSCAR AL USUARIO EN LA BASE DE DATOS
+        // Por ahora, solo responderemos un OK para que no de error 404
+        console.log("Intento de login:", email);
+        res.json({ msg: "Login recibido (falta implementar lógica)" });
+    } catch (e) {
+        res.status(500).json({ msg: "Error en el servidor" });
+    }
+});
