@@ -1,4 +1,8 @@
+require("dotenv").config();
 const express = require('express');
+const mongoose = require('mongoose');
+const path = require('path');
+const QRCode = require('qrcode');const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
 const QRCode = require('qrcode');
