@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SlotEats - Menú</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { 
             --primary: #e84118; 
@@ -14,11 +15,9 @@
 
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #fafafa; padding-bottom: 80px; }
         
-        /* Header y Volver */
         header { background: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top:0; z-index:100; }
         .btn-back { cursor: pointer; font-weight: bold; color: var(--primary); text-decoration: none; }
 
-        /* Grid de Comida */
         .menu-container { padding: 20px; max-width: 800px; margin: 0 auto; }
         .food-card { 
             background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; 
@@ -29,14 +28,11 @@
         .food-info p { margin: 5px 0; color: #666; font-size: 14px; }
         .price { color: var(--primary); font-weight: 900; font-size: 18px; }
 
-        /* Botón Agregar */
         .btn-add { 
             background: var(--primary); color: white; border: none; padding: 10px 15px; 
             border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.2s;
         }
-        .btn-add:hover { transform: scale(1.1); }
 
-        /* 🛍️ BOLSITA FLOTANTE */
         .cart-float {
             position: fixed; bottom: 25px; right: 25px; 
             background: var(--dark); color: white; width: 65px; height: 65px; 
@@ -51,7 +47,6 @@
             font-weight: bold; border: 2px solid white;
         }
 
-        /* 🛒 PANEL DEL CARRITO (Lateral) */
         #cartPanel {
             position: fixed; top: 0; right: -400px; width: 350px; height: 100%;
             background: white; z-index: 2001; box-shadow: -5px 0 25px rgba(0,0,0,0.2);
@@ -61,17 +56,25 @@
         .cart-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         .btn-remove { color: #ff4757; background: none; border: none; cursor: pointer; font-size: 12px; font-weight: bold; }
 
-        /* Inputs Profesionales */
         .checkout-form input { 
             width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-family: inherit;
         }
-        .btn-geo { background: #f1f2f6; border: none; padding: 10px; border-radius: 8px; font-size: 12px; cursor: pointer; width: 100%; margin-bottom: 10px; font-weight: bold; color: var(--dark); }
         
         .btn-pay { 
             background: var(--success); color: white; border: none; width: 100%; padding: 15px; 
             border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: auto;
         }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; }
+
+        /* --- ESTILOS NUEVOS PARA EL MAPA --- */
+        #mapOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; backdrop-filter: blur(4px); }
+        #mapModal {
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 90%; max-width: 450px; background: white; z-index: 3001; border-radius: 20px; padding: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+        }
+        #map { height: 250px; width: 100%; border-radius: 12px; margin: 15px 0; border: 1px solid #eee; }
+        .logistica-info { background: #f8f9fa; padding: 12px; border-radius: 10px; font-size: 13px; border: 1px solid #eee; }
     </style>
 </head>
 <body>
@@ -82,35 +85,56 @@
     <div style="width: 30px;"></div>
 </header>
 
-<div class="menu-container" id="menuLista">
-    </div>
+<div class="menu-container" id="menuLista"></div>
 
 <div class="cart-float" onclick="toggleCart()">
-    🍔
-    <div class="cart-count" id="cartCount">0</div>
+    🍔 <div class="cart-count" id="cartCount">0</div>
 </div>
 
 <div class="overlay" id="cartOverlay" onclick="toggleCart()"></div>
 
 <div id="cartPanel">
     <h2 style="margin-top:0;">Mi Pedido 🥡</h2>
-    <div id="cartItems" style="flex-grow: 1; overflow-y: auto;">
-        </div>
+    <div id="cartItems" style="flex-grow: 1; overflow-y: auto;"></div>
 
     <div class="checkout-form">
         <hr style="border: 0; border-top: 1px solid #eee;">
         <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:20px; margin:15px 0;">
-            <span>Total:</span> <span id="cartTotal">$0.00</span>
+            <span>Subtotal:</span> <span id="cartTotal">$0.00</span>
         </div>
         <input type="text" id="nombrePedido" placeholder="¿A nombre de quién?">
-        <button class="btn-geo" onclick="obtenerUbicacion()">📍 Compartir mi ubicación actual</button>
-        <input type="text" id="ubicacionManual" placeholder="Dirección de entrega">
-        <button class="btn-pay" onclick="finalizarPedido()">Enviar Pedido 🚀</button>
+        <button class="btn-pay" onclick="abrirConfirmacionMapa()">Elegir Destino y Pedir 🚀</button>
     </div>
 </div>
 
+<div id="mapOverlay" onclick="cerrarMapa()"></div>
+<div id="mapModal">
+    <h3 style="margin:0; color:var(--primary);">📍 Punto de Entrega</h3>
+    <p style="font-size:12px; color:#666; margin:5px 0;">Mueve el marcador hasta tu ubicación exacta.</p>
+    
+    <div id="map"></div>
+    
+    <div class="logistica-info">
+        <b>🗺️ Dirección:</b> <span id="txtCalle">Buscando...</span><br>
+        <b>📏 Distancia:</b> <span id="txtKm">0.0 km</span><br>
+        <b>💰 Costo Envío:</b> <span id="txtEnvio">$0.00</span>
+    </div>
+
+    <button class="btn-pay" style="margin-top:15px;" onclick="enviarPedidoFinal()">Confirmar Pedido Todo Ok</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-    // 1. Datos de comida (Se filtran por restaurante en URL)
+    // BASE DE DATOS DE RESTAURANTES (Coordenadas Reales CDMX)
+    const DB_RES = {
+        "Burger Galaxy": { lat: 19.4339, lng: -99.1389 },
+        "Pizza Nostra": { lat: 19.4194, lng: -99.1673 },
+        "Sushi Master": { lat: 19.4312, lng: -99.1841 },
+        "Chicken House": { lat: 19.3552, lng: -99.1636 },
+        "Taco Planet": { lat: 19.4270, lng: -99.1676 }
+    };
+
     const platillosBase = [
         { id: 1, nombre: "Monster Burger", desc: "Doble carne, tocino y mucho queso.", precio: 150, res: "Burger Galaxy" },
         { id: 2, nombre: "Pizza Peperoni", desc: "Masa artesanal y extra queso.", precio: 180, res: "Pizza Nostra" },
@@ -120,20 +144,20 @@
     ];
 
     let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+    let map, marker;
+    let datosLogistica = { km: 0, costo: 0, calle: "" };
+    let resActualCoord = { lat: 19.4326, lng: -99.1332 }; // Default
 
-    // 2. Renderizar menú dinámico
     function cargarMenu() {
         const urlParams = new URLSearchParams(window.location.search);
         const resNombre = urlParams.get('res');
-        
         if(resNombre) {
             document.getElementById('restauranteTitulo').innerText = resNombre;
+            if(DB_RES[resNombre]) resActualCoord = DB_RES[resNombre];
         }
 
-        // Si el restaurante de la URL coincide, mostramos sus platos, sino mostramos todos
         const listaFiltrada = resNombre ? platillosBase.filter(p => p.res === resNombre) : platillosBase;
-
-        const html = listaFiltrada.map(p => `
+        document.getElementById('menuLista').innerHTML = listaFiltrada.map(p => `
             <div class="food-card">
                 <div class="food-info">
                     <h3>${p.nombre}</h3>
@@ -143,28 +167,18 @@
                 <button class="btn-add" onclick="agregarAlCarrito(${p.id})">Agregar +</button>
             </div>
         `).join('');
-        
-        document.getElementById('menuLista').innerHTML = html || "<p>No hay platillos disponibles para este restaurante.</p>";
-        
-        // Autocompletar nombre si hay sesión iniciada
-        const usuarioSesion = JSON.parse(localStorage.getItem('usuario'));
-        if(usuarioSesion) {
-            document.getElementById('nombrePedido').value = usuarioSesion.nombre;
-        }
 
+        const usuarioSesion = JSON.parse(localStorage.getItem('usuario'));
+        if(usuarioSesion) document.getElementById('nombrePedido').value = usuarioSesion.nombre;
+        
         actualizarInterfazCarrito();
     }
 
-    // 3. Lógica del Carrito
     function agregarAlCarrito(id) {
         const producto = platillosBase.find(p => p.id === id);
-        carrito.push({...producto, fechaAgregado: new Date()});
+        carrito.push({...producto});
         localStorage.setItem('carrito', JSON.stringify(carrito));
         actualizarInterfazCarrito();
-        
-        const float = document.querySelector('.cart-float');
-        float.style.transform = "scale(1.2)";
-        setTimeout(() => float.style.transform = "scale(1)", 200);
     }
 
     function quitarDelCarrito(index) {
@@ -177,22 +191,15 @@
         document.getElementById('cartCount').innerText = carrito.length;
         const lista = document.getElementById('cartItems');
         let total = 0;
-
         if (carrito.length === 0) {
             lista.innerHTML = `<p style="text-align:center; color:#999; margin-top:50px;">Tu bolsita está vacía 🌮</p>`;
         } else {
             lista.innerHTML = carrito.map((p, index) => {
                 total += p.precio;
-                return `
-                    <div class="cart-item">
-                        <div>
-                            <div style="font-weight:bold;">${p.nombre}</div>
-                            <div style="font-size:11px; color:var(--primary);">${p.res}</div>
-                            <div style="font-size:13px;">$${p.precio}</div>
-                        </div>
-                        <button class="btn-remove" onclick="quitarDelCarrito(${index})">❌ Quitar</button>
-                    </div>
-                `;
+                return `<div class="cart-item">
+                    <div><b>${p.nombre}</b><br><small>$${p.precio}</small></div>
+                    <button class="btn-remove" onclick="quitarDelCarrito(${index})">❌</button>
+                </div>`;
             }).join('');
         }
         document.getElementById('cartTotal').innerText = `$${total.toFixed(2)}`;
@@ -200,44 +207,64 @@
 
     function toggleCart() {
         document.getElementById('cartPanel').classList.toggle('active');
-        document.getElementById('cartOverlay').style.display = 
-            document.getElementById('cartPanel').classList.contains('active') ? 'block' : 'none';
+        document.getElementById('cartOverlay').style.display = document.getElementById('cartPanel').classList.contains('active') ? 'block' : 'none';
     }
 
-    function obtenerUbicacion() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                const { latitude, longitude } = pos.coords;
-                document.getElementById('ubicacionManual').value = `${latitude.toFixed(4)}, ${longitude.toFixed(4)} (GPS)`;
-                alert("📍 Ubicación GPS capturada.");
-            }, () => {
-                alert("No se pudo obtener la ubicación. Por favor escríbela.");
-            });
+    // --- LÓGICA DE MAPA Y LOGÍSTICA ---
+    function abrirConfirmacionMapa() {
+        if(carrito.length === 0 || !document.getElementById('nombrePedido').value) {
+            return alert("Completa tu nombre y agrega comida.");
         }
+        toggleCart();
+        document.getElementById('mapOverlay').style.display = 'block';
+        document.getElementById('mapModal').style.display = 'block';
+
+        if (!map) {
+            map = L.map('map').setView([resActualCoord.lat, resActualCoord.lng], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            marker = L.marker([resActualCoord.lat, resActualCoord.lng], {draggable: true}).addTo(map);
+            marker.on('dragend', (e) => calcularDistanciaReal(e.target.getLatLng()));
+        }
+        calcularDistanciaReal(marker.getLatLng());
     }
 
-    // 4. Conexión Real con Server.js
-    async function finalizarPedido() {
-        const nombre = document.getElementById('nombrePedido').value;
-        const ubi = document.getElementById('ubicacionManual').value;
+    function cerrarMapa() {
+        document.getElementById('mapOverlay').style.display = 'none';
+        document.getElementById('mapModal').style.display = 'none';
+    }
+
+    function calcularDistanciaReal(pos) {
+        // Fórmula de Haversine
+        const R = 6371;
+        const dLat = (pos.lat - resActualCoord.lat) * Math.PI / 180;
+        const dLon = (pos.lng - resActualCoord.lng) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(resActualCoord.lat * Math.PI / 180) * Math.cos(pos.lat * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        const km = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+        
+        const costoEnvio = km * 12; // $12 por km
+        datosLogistica = { km: km.toFixed(2), costo: costoEnvio.toFixed(2) };
+
+        document.getElementById('txtKm').innerText = km.toFixed(2) + " km";
+        document.getElementById('txtEnvio').innerText = "$" + costoEnvio.toFixed(2);
+
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.lat}&lon=${pos.lng}`)
+            .then(r => r.json()).then(data => {
+                datosLogistica.calle = data.display_name;
+                document.getElementById('txtCalle').innerText = data.display_name.split(',')[0] + ", " + data.display_name.split(',')[1];
+            });
+    }
+
+    async function enviarPedidoFinal() {
+        const subtotal = carrito.reduce((s, p) => s + p.precio, 0);
         const usuarioSesion = JSON.parse(localStorage.getItem('usuario'));
 
-        if (!nombre || carrito.length === 0 || !ubi) {
-            return alert("Por favor completa tu nombre, dirección y agrega comida.");
-        }
-
-        const totalPedido = carrito.reduce((s, p) => s + p.precio, 0);
-        
-        // Simulamos distancia para la lógica de cancelación (entre 1 y 10 km)
-        const distanciaSimulada = Math.floor(Math.random() * 10) + 1;
-
         const pedidoData = {
-            nombreCliente: nombre,
+            nombreCliente: document.getElementById('nombrePedido').value,
             emailCliente: usuarioSesion ? usuarioSesion.email : "invitado@mail.com",
             items: carrito,
-            total: totalPedido,
-            ubicacion: ubi,
-            distanciaKm: distanciaSimulada
+            total: (parseFloat(subtotal) + parseFloat(datosLogistica.costo)).toFixed(2),
+            ubicacion: datosLogistica.calle,
+            distanciaKm: parseFloat(datosLogistica.km)
         };
 
         try {
@@ -247,24 +274,17 @@
                 body: JSON.stringify(pedidoData)
             });
 
-            const result = await response.json();
-
             if (response.ok) {
-                alert(`🚀 ¡Pedido enviado con éxito!\nDistancia estimada: ${distanciaSimulada}km`);
-                carrito = [];
+                alert("🚀 ¡Pedido confirmado! Te redirigimos al rastreo.");
                 localStorage.removeItem('carrito');
-                window.location.href = "pedidos.html"; // Te redirige a la nueva página de pedidos
-            } else {
-                alert("Error: " + result.msg);
+                window.location.href = "pedidos.html";
             }
-        } catch (error) {
-            console.error(error);
-            alert("No se pudo conectar con el servidor.");
+        } catch (e) {
+            alert("Error de conexión con el servidor.");
         }
     }
 
     window.onload = cargarMenu;
 </script>
-
 </body>
 </html>
