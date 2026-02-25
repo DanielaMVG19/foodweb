@@ -13,6 +13,7 @@
             --success: #27ae60; 
             --warning: #f1c40f;
             --gold: #fbc531; 
+            --ice: #74b9ff; /* Nuevo color para el frío */
         }
         
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #fafafa; color: var(--dark); overflow-x: hidden; }
@@ -53,7 +54,9 @@
         .rank-item { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 14px; font-weight: 600; }
         .rank-bar-bg { background: #eee; height: 8px; border-radius: 4px; width: 100%; margin-top: 5px; overflow: hidden; }
         .rank-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 4px; width: 0%; transition: width 1s ease-out; }
-        .low-demand { background: #95a5a6 !important; }
+        
+        /* Estilo para la demanda baja */
+        .low-demand-bar { background: linear-gradient(90deg, var(--ice), #a29bfe) !important; }
 
         /* Estilos de Restaurantes (Grid) */
         .categories-container { background: white; padding: 20px 0; border-bottom: 1px solid #eee; }
@@ -114,6 +117,11 @@
             <h3>🔥 Top Comidas</h3>
             <div id="topFood"></div>
         </div>
+
+        <div class="rank-section">
+            <h3 style="color: var(--ice);">❄️ Menos Solicitados</h3>
+            <div id="lowRes"></div>
+        </div>
     </div>
 </div>
 
@@ -172,6 +180,15 @@
                     <div class="rank-item" style="background:#fff5f5; padding:8px; border-radius:8px; margin-bottom:8px;">
                         <span>📍 ${f.nombre}</span> <b style="color:var(--primary);">${f.pedidos} pts</b>
                     </div>`).join('');
+
+                // Render Menos Solicitados (El Frío ❄️)
+                if(data.menosSolicitados) {
+                    document.getElementById('lowRes').innerHTML = data.menosSolicitados.map(r => `
+                        <div style="margin-bottom:15px;">
+                            <div class="rank-item"><span>${r.nombre}</span> <span style="color:var(--ice);">${r.porcentaje}%</span></div>
+                            <div class="rank-bar-bg"><div class="rank-bar-fill low-demand-bar" style="width:${r.porcentaje}%"></div></div>
+                        </div>`).join('');
+                }
 
                 content.style.opacity = "1";
             } catch (e) {

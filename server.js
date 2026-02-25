@@ -38,33 +38,60 @@ const Reserva = mongoose.model("Reserva", new mongoose.Schema({
 }));
 
 // =====================
-// 📊 DASHBOARD DE RANKING (NUEVO)
+// 📊 DASHBOARD DE RANKING (CON SECCIÓN FRÍA)
 // =====================
 app.get("/stats-ranking", async (req, res) => {
   try {
-    // 1. Top Restaurantes: Agrupamos por nombre y contamos documentos
+    // Lista base de tus restaurantes para comparar quién no tiene reservas
+    const todosLosRes = ["Burger Galaxy", "Pizza Nostra", "Sushi Master", "Chicken House"];
+
+    // 1. Ranking de los más pedidos (Top)
     const rankingRes = await Reserva.aggregate([
       { $group: { _id: "$restaurante", total: { $sum: 1 } } },
-      { $sort: { total: -1 } },
-      { $limit: 5 }
+      { $sort: { total: -1 } }
     ]);
 
-    // Calculamos el porcentaje relativo basado en el restaurante más popular
     const maxReservas = rankingRes.length > 0 ? rankingRes[0].total : 1;
-    const topRestaurantes = rankingRes.map(r => ({
+    
+    // Formatear Top Restaurantes
+    const topRestaurantes = rankingRes.slice(0, 5).map(r => ({
       nombre: r._id,
       porcentaje: Math.round((r.total / maxReservas) * 100),
       cantidad: r.total
     }));
 
-    // 2. Top Comidas (Puntaje basado en popularidad del restaurante)
+    // 2. Lógica para "MENOS SOLICITADOS" (El Frío ❄️)
+    const nombresConReserva = rankingRes.map(r => r._id);
+    const sinReserva = todosLosRes.filter(n => !nombresConReserva.includes(n));
+    
+    // Los que tienen 0 reservas van al frío con un 5% estético
+    let menosSolicitados = sinReserva.map(n => ({ nombre: n, porcentaje: 5 }));
+    
+    // Si todos tienen reservas, tomamos los 2 que tengan menos
+    if (rankingRes.length > 0) {
+        const cola = [...rankingRes].reverse().slice(0, 2);
+        cola.forEach(c => {
+            if (!menosSolicitados.find(m => m.nombre === c._id)) {
+                menosSolicitados.push({ 
+                    nombre: c._id, 
+                    porcentaje: Math.max(Math.round((c.total / maxReservas) * 100), 10) 
+                });
+            }
+        });
+    }
+
+    // 3. Top Comidas (Dinámico basado en el volumen del restaurante)
     const topComidas = [
       { nombre: "Monster Burger", pedidos: (rankingRes.find(r => r._id === "Burger Galaxy")?.total || 0) * 12 + 10 },
       { nombre: "Sushi Master Roll", pedidos: (rankingRes.find(r => r._id === "Sushi Master")?.total || 0) * 8 + 5 },
       { nombre: "Pizza Peperoni", pedidos: (rankingRes.find(r => r._id === "Pizza Nostra")?.total || 0) * 10 + 2 }
     ].sort((a, b) => b.pedidos - a.pedidos);
 
-    res.json({ topRestaurantes, topComidas });
+    res.json({ 
+        topRestaurantes, 
+        topComidas, 
+        menosSolicitados: menosSolicitados.slice(0, 3) 
+    });
   } catch (e) {
     res.status(500).json({ msg: "Error al obtener estadísticas" });
   }
