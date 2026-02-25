@@ -160,106 +160,140 @@
     </div>
 
     <script>
-        const emailUsuario = localStorage.getItem('userEmail');
+    const emailUsuario = localStorage.getItem('userEmail');
 
-        if (!emailUsuario) {
-            alert("Por favor inicia sesión primero");
-            window.location.href = "login.html";
+    if (!emailUsuario) {
+        alert("Por favor inicia sesión primero");
+        window.location.href = "login.html";
+    }
+
+    function calcularDiferencia(fechaHoraISO) {
+        const cita = new Date(fechaHoraISO);
+        const ahora = new Date();
+
+        const diffMs = cita - ahora;
+        const diffHrs = diffMs / (1000 * 60 * 60);
+
+        if (diffMs <= 0) {
+            return { mensaje: "Finalizada", puedeCancelar: false };
         }
 
-       function calcularDiferencia(fecha, hora) {
-    const cita = new Date(`${fecha}T${hora}:00`);
-    const ahora = new Date();
-    
-    const diffMs = cita.getTime() - ahora.getTime();
-    const diffHrs = diffMs / (1000 * 60 * 60);
-    
-    if (diffMs <= 0) return { mensaje: "Finalizada", puedeCancelar: false };
+        const horas = Math.floor(diffHrs);
+        const minutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
 
-    const horas = Math.floor(diffHrs);
-    const minutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return {
-        mensaje: `Faltan: ${horas}h ${minutos}m`,
-        // Aquí está el truco: usamos 0.9 en lugar de 1 para evitar que por 1 minuto no te deje
-        puedeCancelar: diffHrs >= 0.9 
-    };
-}
-        async function cargarReservas() {
-            const contenedor = document.getElementById('listaReservas');
-            try {
-                const res = await fetch(`/mis-reservas/${emailUsuario}`);
-                const reservas = await res.json();
+        return {
+            mensaje: `Faltan: ${horas}h ${minutos}m`,
+            puedeCancelar: diffHrs >= 1
+        };
+    }
 
-                if (reservas.length === 0) {
-                    contenedor.innerHTML = "<p style='text-align:center;'>Aún no tienes reservas. ¡Es hora de comer algo rico!</p>";
-                    return;
-                }
+    function formatearFecha(fechaHoraISO) {
+        const fecha = new Date(fechaHoraISO);
 
-                contenedor.innerHTML = "";
-                reservas.forEach(reserva => {
-                    const infoTiempo = calcularDiferencia(reserva.fecha, reserva.hora);
-                    const card = document.createElement('div');
-                    card.className = "reserva-card";
-                    card.innerHTML = `
-                        <h3>${reserva.restaurante}</h3>
-                        <div class="info-row"><span>📅</span> ${reserva.fecha}</div>
-                        <div class="info-row"><span>⏰</span> ${reserva.hora}</div>
-                        <div class="info-row"><span>👥</span> ${reserva.personas} Personas</div>
-                        <div class="info-row"><span>📝</span> <i>"${reserva.notas || 'Sin notas'}"</i></div>
-                        
-                        <div class="tiempo-falta">⏳ ${infoTiempo.mensaje}</div>
-                        
-                        <div class="actions">
-                            <button class="btn-qr" onclick="obtenerQR('${reserva._id}')">Generar Ticket QR</button>
-                            ${infoTiempo.puedeCancelar 
-                                ? `<button class="btn-cancelar" onclick="cancelar('${reserva._id}')">Cancelar</button>`
-                                : `<div class="aviso-llamar">⚠️ Llamar al local para cancelar</div>`
-                            }
-                        </div>
-                    `;
-                    contenedor.appendChild(card);
-                });
-            } catch (e) {
-                contenedor.innerHTML = "<p>Error al conectar con el servidor.</p>";
+        return {
+            fecha: fecha.toLocaleDateString(),
+            hora: fecha.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+    }
+
+    async function cargarReservas() {
+        const contenedor = document.getElementById('listaReservas');
+
+        try {
+            const res = await fetch(`/mis-reservas/${emailUsuario}`);
+            const reservas = await res.json();
+
+            if (reservas.length === 0) {
+                contenedor.innerHTML = "<p style='text-align:center;'>Aún no tienes reservas. ¡Es hora de comer algo rico!</p>";
+                return;
             }
-        }
 
-        async function obtenerQR(id) {
-            try {
-                const res = await fetch('/generar-qr', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reservaId: id })
-                });
-                const data = await res.json();
-                
-                if (res.ok) {
-                    document.getElementById('imgQR').src = data.qrImagen;
-                    document.getElementById('modalQR').style.display = 'block';
-                    document.getElementById('overlay').style.display = 'block';
-                } else {
-                    alert(data.msg);
-                }
-            } catch (e) { alert("Error al obtener el QR"); }
-        }
+            contenedor.innerHTML = "";
 
-        async function cancelar(id) {
-            if (!confirm("¿Seguro que quieres cancelar tu reserva?")) return;
-            try {
-                const res = await fetch(`/cancelar-reserva/${id}`, { method: 'DELETE' });
-                const data = await res.json();
+            reservas.forEach(reserva => {
+
+                const infoTiempo = calcularDiferencia(reserva.fechaHora);
+                const fechaFormateada = formatearFecha(reserva.fechaHora);
+
+                const card = document.createElement('div');
+                card.className = "reserva-card";
+
+                card.innerHTML = `
+                    <h3>${reserva.restaurante}</h3>
+
+                    <div class="info-row"><span>📅</span> ${fechaFormateada.fecha}</div>
+                    <div class="info-row"><span>⏰</span> ${fechaFormateada.hora}</div>
+                    <div class="info-row"><span>👥</span> ${reserva.personas} Personas</div>
+                    <div class="info-row"><span>📝</span> <i>"${reserva.notas || 'Sin notas'}"</i></div>
+
+                    <div class="tiempo-falta">⏳ ${infoTiempo.mensaje}</div>
+
+                    <div class="actions">
+                        <button class="btn-qr" onclick="obtenerQR('${reserva._id}')">
+                            Generar Ticket QR
+                        </button>
+
+                        ${infoTiempo.puedeCancelar
+                            ? `<button class="btn-cancelar" onclick="cancelar('${reserva._id}')">Cancelar</button>`
+                            : `<div class="aviso-llamar">⚠️ Llamar al local para cancelar</div>`
+                        }
+                    </div>
+                `;
+
+                contenedor.appendChild(card);
+            });
+
+        } catch (e) {
+            contenedor.innerHTML = "<p>Error al conectar con el servidor.</p>";
+        }
+    }
+
+    async function obtenerQR(id) {
+        try {
+            const res = await fetch('/generar-qr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reservaId: id })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                document.getElementById('imgQR').src = data.qrImagen;
+                document.getElementById('modalQR').style.display = 'block';
+                document.getElementById('overlay').style.display = 'block';
+            } else {
                 alert(data.msg);
-                cargarReservas();
-            } catch (e) { alert("Error al cancelar"); }
-        }
+            }
 
-        function cerrarQR() {
-            document.getElementById('modalQR').style.display = 'none';
-            document.getElementById('overlay').style.display = 'none';
+        } catch (e) {
+            alert("Error al obtener el QR");
         }
+    }
 
-        cargarReservas();
-    </script>
+    async function cancelar(id) {
+        if (!confirm("¿Seguro que quieres cancelar tu reserva?")) return;
+
+        try {
+            const res = await fetch(`/cancelar-reserva/${id}`, {
+                method: 'DELETE'
+            });
+
+            const data = await res.json();
+            alert(data.msg);
+            cargarReservas();
+
+        } catch (e) {
+            alert("Error al cancelar");
+        }
+    }
+
+    function cerrarQR() {
+        document.getElementById('modalQR').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+    }
+
+    cargarReservas();
+</script>
 </body>
 </html>
