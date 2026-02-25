@@ -5,138 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mis Reservas - SlotEats</title>
     <style>
-        :root {
-            --primary: #e84118;
-            --secondary: #ff4757;
-            --dark: #2f3542;
-            --bg: #fef2f2;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--dark);
-            margin: 0;
-            padding: 20px;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        h1 { color: var(--primary); font-size: 2.2rem; margin-bottom: 15px; }
-
-        .btn-volver {
-            background: white;
-            border: 2px solid var(--primary);
-            color: var(--primary);
-            padding: 8px 25px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: 0.3s;
-        }
-
+        :root { --primary: #e84118; --secondary: #ff4757; --dark: #2f3542; --bg: #fef2f2; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--dark); padding: 20px; }
+        header { text-align: center; margin-bottom: 30px; }
+        h1 { color: var(--primary); }
+        .btn-volver { background: white; border: 2px solid var(--primary); color: var(--primary); padding: 8px 25px; border-radius: 20px; cursor: pointer; font-weight: bold; }
         .btn-volver:hover { background: var(--primary); color: white; }
-
-        #listaReservas {
-            max-width: 500px;
-            margin: 0 auto;
-        }
-
-        .reserva-card {
-            background: white;
-            padding: 25px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(232, 65, 24, 0.08);
-            margin-bottom: 25px;
-            border-left: 6px solid var(--primary);
-            position: relative;
-        }
-
-        .reserva-card h3 { margin: 0 0 12px 0; color: var(--primary); font-size: 1.5rem; }
-
-        .info-row { display: flex; align-items: center; margin: 10px 0; font-size: 1rem; color: #57606f; }
-        .info-row span { margin-right: 12px; font-size: 1.2rem; }
-
-        .tiempo-falta {
-            display: inline-block;
-            background: #fff5f5;
-            color: var(--primary);
-            padding: 6px 15px;
-            border-radius: 10px;
-            font-weight: bold;
-            margin: 15px 0;
-            border: 1px solid #ffebeb;
-            font-size: 0.9rem;
-        }
-
-        .actions { display: flex; gap: 12px; margin-top: 20px; }
-
-        button.btn-qr, button.btn-cancelar {
-            flex: 1;
-            padding: 14px;
-            border: none;
-            border-radius: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.3s;
-            font-size: 0.95rem;
-        }
-
-        .btn-qr { background: var(--primary); color: white; }
-        .btn-qr:hover { background: var(--secondary); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(232, 65, 24, 0.3); }
-
-        .btn-cancelar { background: #f1f2f6; color: #57606f; }
-        .btn-cancelar:hover { background: #dfe4ea; }
-
-        .aviso-llamar {
-            background: #fff5f5;
-            color: #c0392b;
-            padding: 12px;
-            border-radius: 10px;
-            font-size: 0.85rem;
-            text-align: center;
-            width: 100%;
-            border: 1px dashed #feb2b2;
-            font-weight: 500;
-        }
-
-        /* Modal y Overlay */
-        #overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px);
-            z-index: 999;
-        }
-
-        #modalQR {
-            display: none;
-            position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 30px;
-            border-radius: 25px;
-            text-align: center;
-            z-index: 1000;
-            width: 80%;
-            max-width: 320px;
-        }
-
-        #modalQR h3 { color: var(--primary); margin-top: 0; }
-        #modalQR button {
-            background: var(--dark);
-            color: white;
-            border: none;
-            padding: 10px 25px;
-            border-radius: 15px;
-            margin-top: 20px;
-            cursor: pointer;
-        }
+        #listaReservas { max-width: 500px; margin: 0 auto; }
+        .reserva-card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(232, 65, 24, 0.08); margin-bottom: 25px; border-left: 6px solid var(--primary); }
+        .info-row { display: flex; align-items: center; margin: 10px 0; color: #57606f; }
+        .tiempo-falta { display: inline-block; background: #fff5f5; color: var(--primary); padding: 6px 15px; border-radius: 10px; font-weight: bold; margin: 15px 0; font-size: 0.9rem; }
+        .actions { display: flex; gap: 12px; }
+        .btn-qr { background: var(--primary); color: white; flex: 1; padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .btn-cancelar { background: #f1f2f6; color: #57606f; flex: 1; padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .aviso-llamar { background: #fff5f5; color: #c0392b; padding: 10px; border-radius: 10px; font-size: 0.8rem; text-align: center; width: 100%; border: 1px dashed #feb2b2; }
+        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999; }
+        #modalQR { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 25px; text-align: center; z-index: 1000; width: 80%; max-width: 320px; }
     </style>
 </head>
 <body>
@@ -147,153 +31,94 @@
     </header>
 
     <main id="listaReservas">
-        <p style="text-align: center;">Cargando tus deliciosas experiencias...</p>
+        <p style="text-align: center;">Cargando tus citas...</p>
     </main>
 
     <div id="overlay" onclick="cerrarQR()"></div>
     <div id="modalQR">
         <h3>Tu Ticket Digital</h3>
-        <p style="font-size: 0.8rem; color: #666;">Muestra este código al llegar</p>
-        <img id="imgQR" src="" alt="Código QR" style="width: 100%; max-width: 200px; border-radius: 15px;">
-        <br>
-        <button onclick="cerrarQR()">Cerrar</button>
+        <img id="imgQR" src="" alt="QR" style="width: 100%; border-radius: 15px;">
+        <br><button onclick="cerrarQR()" style="margin-top:15px; padding:10px 20px; cursor:pointer;">Cerrar</button>
     </div>
 
     <script>
-    const emailUsuario = localStorage.getItem('userEmail');
+        const emailUsuario = localStorage.getItem('userEmail');
+        if (!emailUsuario) window.location.href = "login.html";
 
-    if (!emailUsuario) {
-        alert("Por favor inicia sesión primero");
-        window.location.href = "login.html";
-    }
+        function calcularDiferencia(fechaISO) {
+            const cita = new Date(fechaISO);
+            const ahora = new Date();
+            const diffMs = cita - ahora;
+            const diffHrs = diffMs / (1000 * 60 * 60);
 
-    function calcularDiferencia(fechaHoraISO) {
-        const cita = new Date(fechaHoraISO);
-        const ahora = new Date();
-
-        const diffMs = cita - ahora;
-        const diffHrs = diffMs / (1000 * 60 * 60);
-
-        if (diffMs <= 0) {
-            return { mensaje: "Finalizada", puedeCancelar: false };
+            if (diffMs <= 0) return { mensaje: "Finalizada", puedeCancelar: false };
+            
+            const horas = Math.floor(diffHrs);
+            const minutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            return {
+                mensaje: `Faltan: ${horas}h ${minutos}m`,
+                puedeCancelar: diffHrs >= 0.9
+            };
         }
 
-        const horas = Math.floor(diffHrs);
-        const minutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-        return {
-            mensaje: `Faltan: ${horas}h ${minutos}m`,
-            puedeCancelar: diffHrs >= 1
-        };
-    }
-
-    function formatearFecha(fechaHoraISO) {
-        const fecha = new Date(fechaHoraISO);
-
-        return {
-            fecha: fecha.toLocaleDateString(),
-            hora: fecha.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-    }
-
-    async function cargarReservas() {
-        const contenedor = document.getElementById('listaReservas');
-
-        try {
-            const res = await fetch(`/mis-reservas/${emailUsuario}`);
-            const reservas = await res.json();
-
-            if (reservas.length === 0) {
-                contenedor.innerHTML = "<p style='text-align:center;'>Aún no tienes reservas. ¡Es hora de comer algo rico!</p>";
-                return;
-            }
-
-            contenedor.innerHTML = "";
-
-            reservas.forEach(reserva => {
-
-                const infoTiempo = calcularDiferencia(reserva.fechaHora);
-                const fechaFormateada = formatearFecha(reserva.fechaHora);
-
-                const card = document.createElement('div');
-                card.className = "reserva-card";
-
-                card.innerHTML = `
-                    <h3>${reserva.restaurante}</h3>
-
-                    <div class="info-row"><span>📅</span> ${fechaFormateada.fecha}</div>
-                    <div class="info-row"><span>⏰</span> ${fechaFormateada.hora}</div>
-                    <div class="info-row"><span>👥</span> ${reserva.personas} Personas</div>
-                    <div class="info-row"><span>📝</span> <i>"${reserva.notas || 'Sin notas'}"</i></div>
-
-                    <div class="tiempo-falta">⏳ ${infoTiempo.mensaje}</div>
-
-                    <div class="actions">
-                        <button class="btn-qr" onclick="obtenerQR('${reserva._id}')">
-                            Generar Ticket QR
-                        </button>
-
-                        ${infoTiempo.puedeCancelar
-                            ? `<button class="btn-cancelar" onclick="cancelar('${reserva._id}')">Cancelar</button>`
-                            : `<div class="aviso-llamar">⚠️ Llamar al local para cancelar</div>`
-                        }
-                    </div>
-                `;
-
-                contenedor.appendChild(card);
-            });
-
-        } catch (e) {
-            contenedor.innerHTML = "<p>Error al conectar con el servidor.</p>";
+        async function cargarReservas() {
+            const contenedor = document.getElementById('listaReservas');
+            try {
+                const res = await fetch(`/mis-reservas/${emailUsuario}`);
+                const reservas = await res.json();
+                if (reservas.length === 0) {
+                    contenedor.innerHTML = "<p style='text-align:center;'>No tienes reservas.</p>";
+                    return;
+                }
+                contenedor.innerHTML = "";
+                reservas.forEach(reserva => {
+                    const info = calcularDiferencia(reserva.fechaHora);
+                    const dt = new Date(reserva.fechaHora);
+                    const card = document.createElement('div');
+                    card.className = "reserva-card";
+                    card.innerHTML = `
+                        <h3>${reserva.restaurante}</h3>
+                        <div class="info-row">📅 ${dt.toLocaleDateString()} | ⏰ ${dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                        <div class="tiempo-falta">⏳ ${info.mensaje}</div>
+                        <div class="actions">
+                            <button class="btn-qr" onclick="obtenerQR('${reserva._id}')">Ver QR</button>
+                            ${info.puedeCancelar 
+                                ? `<button class="btn-cancelar" onclick="cancelar('${reserva._id}')">Cancelar</button>`
+                                : `<div class="aviso-llamar">⚠️ Llamar para cancelar</div>`}
+                        </div>`;
+                    contenedor.appendChild(card);
+                });
+            } catch (e) { contenedor.innerHTML = "<p>Error de conexión.</p>"; }
         }
-    }
 
-    async function obtenerQR(id) {
-        try {
+        async function obtenerQR(id) {
             const res = await fetch('/generar-qr', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ reservaId: id })
             });
-
             const data = await res.json();
-
             if (res.ok) {
                 document.getElementById('imgQR').src = data.qrImagen;
                 document.getElementById('modalQR').style.display = 'block';
                 document.getElementById('overlay').style.display = 'block';
-            } else {
-                alert(data.msg);
-            }
-
-        } catch (e) {
-            alert("Error al obtener el QR");
+            } else alert(data.msg);
         }
-    }
 
-    async function cancelar(id) {
-        if (!confirm("¿Seguro que quieres cancelar tu reserva?")) return;
-
-        try {
-            const res = await fetch(`/cancelar-reserva/${id}`, {
-                method: 'DELETE'
-            });
-
+        async function cancelar(id) {
+            if (!confirm("¿Cancelar reserva?")) return;
+            const res = await fetch(`/cancelar-reserva/${id}`, { method: 'DELETE' });
             const data = await res.json();
             alert(data.msg);
             cargarReservas();
-
-        } catch (e) {
-            alert("Error al cancelar");
         }
-    }
 
-    function cerrarQR() {
-        document.getElementById('modalQR').style.display = 'none';
-        document.getElementById('overlay').style.display = 'none';
-    }
+        function cerrarQR() {
+            document.getElementById('modalQR').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
 
-    cargarReservas();
-</script>
+        cargarReservas();
+    </script>
 </body>
 </html>
