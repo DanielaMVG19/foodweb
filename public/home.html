@@ -5,25 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SlotEats - Home</title>
     <style>
-        :root { --primary: #e84118; --secondary: #ff4757; --dark: #2f3542; --light: #fef2f2; --success: #27ae60; --warning: #f1c40f; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #fafafa; color: var(--dark); }
+        :root { 
+            --primary: #e84118; 
+            --secondary: #ff4757; 
+            --dark: #2f3542; 
+            --light: #fef2f2; 
+            --success: #27ae60; 
+            --warning: #f1c40f;
+            --gold: #fbc531; 
+        }
+        
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #fafafa; color: var(--dark); overflow-x: hidden; }
         
         header { background: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .logo { font-size: 26px; font-weight: 900; cursor: pointer; }
         .logo span:first-child { color: var(--primary); }
         .logo span:last-child { color: var(--dark); }
         
-        .user-controls { display: flex; align-items: center; gap: 15px; }
+        .user-controls { display: flex; align-items: center; gap: 12px; }
         
-        /* NUEVO: Estilo para el botón de Mis Reservas */
-        .btn-my-reservations { background: var(--light); color: var(--primary); border: 2px solid var(--primary); padding: 8px 15px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 13px; text-decoration: none; transition: 0.3s; }
-        .btn-my-reservations:hover { background: var(--primary); color: white; }
-        
-        .btn-logout { background: #f1f2f6; color: #ff4757; border: none; padding: 8px 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        /* Botones de Navegación */
+        .btn-nav { padding: 8px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 13px; text-decoration: none; transition: 0.3s; border: none; display: flex; align-items: center; gap: 5px; }
+        .btn-ranking { background: var(--gold); color: var(--dark); }
+        .btn-ranking:hover { transform: scale(1.05); box-shadow: 0 4px 10px rgba(251, 197, 49, 0.4); }
+        .btn-my-reservations { background: var(--light); color: var(--primary); border: 2px solid var(--primary); }
+        .btn-logout { background: #f1f2f6; color: var(--secondary); }
 
+        /* Dashboard de Ranking (Panel Lateral) */
+        #rankingPanel {
+            position: fixed; top: 0; right: -400px; width: 350px; height: 100%;
+            background: white; z-index: 2000; box-shadow: -5px 0 25px rgba(0,0,0,0.15);
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); padding: 25px;
+            overflow-y: auto;
+        }
+        #rankingPanel.active { right: 0; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1999; backdrop-filter: blur(3px); }
+        
+        .rank-section { margin-bottom: 30px; }
+        .rank-section h3 { font-size: 18px; border-bottom: 2px solid var(--light); padding-bottom: 10px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        
+        .rank-item { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 14px; }
+        .rank-bar-bg { background: #eee; height: 8px; border-radius: 4px; width: 100%; margin-top: 5px; overflow: hidden; }
+        .rank-bar-fill { height: 100%; background: var(--primary); border-radius: 4px; }
+        .low-demand { background: #95a5a6 !important; } /* Para los menos pedidos */
+
+        /* Estilos de Restaurantes (Grid) */
         .categories-container { background: white; padding: 20px 0; border-bottom: 1px solid #eee; }
         .categories-list { display: flex; overflow-x: auto; padding: 0 25px; gap: 20px; scrollbar-width: none; }
-        .cat-item { min-width: 75px; text-align: center; cursor: pointer; }
+        .cat-item { min-width: 75px; text-align: center; cursor: pointer; transition: 0.3s; }
+        .cat-item:hover { transform: translateY(-5px); }
         .cat-icon { width: 60px; height: 60px; background: var(--light); border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 30px; margin-bottom: 8px; }
 
         .main-content { padding: 25px; max-width: 1200px; margin: 0 auto; }
@@ -31,16 +61,12 @@
         
         .res-card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05); position: relative; transition: 0.3s; }
         .res-image { width: 100%; height: 180px; background-size: cover; background-position: center; }
-        
-        .status-badge { position: absolute; top: 15px; right: 15px; padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: bold; color: white; text-transform: uppercase; }
+        .status-badge { position: absolute; top: 15px; right: 15px; padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: bold; color: white; }
         .badge-disponible { background: var(--success); }
         .badge-saturado { background: var(--warning); color: var(--dark); }
         .badge-cerrado { background: #95a5a6; }
 
         .res-info { padding: 20px; }
-        .res-info h4 { margin: 0 0 10px 0; font-size: 19px; }
-        .res-info p { margin: 4px 0; color: #666; font-size: 13.5px; display: flex; align-items: center; gap: 6px; }
-        
         .res-actions { display: flex; gap: 10px; margin-top: 15px; }
         .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 13px; }
         .btn-order { background: var(--primary); color: white; }
@@ -55,11 +81,36 @@
         <div class="logo" onclick="showAll()"><span>Slot</span><span>Eats</span></div>
     </div>
     <div class="user-controls">
-        <div id="welcomeMsg" style="font-weight: 600; color: var(--primary);">Hola, Gourmet</div>
-        <a href="mis-reservas.html" class="btn-my-reservations">📅 Mis Reservas</a>
-        <button class="btn-logout" onclick="cerrarSesion()">Salir 🚪</button>
+        <div id="welcomeMsg" style="font-weight: 600; color: var(--primary); margin-right: 10px;">Hola, Gourmet</div>
+        <button class="btn-nav btn-ranking" onclick="toggleRanking()">⭐ Ranking</button>
+        <a href="mis-reservas.html" class="btn-nav btn-my-reservations">📅 Reservas</a>
+        <button class="btn-nav btn-logout" onclick="cerrarSesion()">Salir 🚪</button>
     </div>
 </header>
+
+<div class="overlay" id="rankingOverlay" onclick="toggleRanking()"></div>
+<div id="rankingPanel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin:0; color:var(--primary);">SlotStats 📊</h2>
+        <button onclick="toggleRanking()" style="border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
+    </div>
+
+    <div class="rank-section">
+        <h3>🏆 Top 5 Restaurantes</h3>
+        <div id="topRes">
+            </div>
+    </div>
+
+    <div class="rank-section">
+        <h3>🔥 Top Comidas</h3>
+        <div id="topFood"></div>
+    </div>
+
+    <div class="rank-section">
+        <h3>❄️ Menos Solicitados</h3>
+        <div id="lowRes"></div>
+    </div>
+</div>
 
 <div class="categories-container">
     <div class="categories-list">
@@ -87,61 +138,71 @@
     }
 
     const restaurantes = [
-        { 
-            nombre: "Burger Galaxy", 
-            cat: "Hamburguesas", 
-            img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500", 
-            status: "disponible", 
-            horario: "12:00 PM - 11:00 PM",
-            dias: "Lun - Dom"
-        },
-        { 
-            nombre: "Pizza Nostra", 
-            cat: "Pizza", 
-            img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500", 
-            status: "saturado", 
-            horario: "02:00 PM - 10:00 PM",
-            dias: "Mar - Dom"
-        },
-        { 
-            nombre: "Sushi Master", 
-            cat: "Sushi", 
-            img: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500", 
-            status: "disponible", 
-            horario: "01:00 PM - 11:00 PM",
-            dias: "Lun - Sáb"
-        },
-        { 
-            nombre: "Chicken House", 
-            cat: "Pollo", 
-            img: "https://images.unsplash.com/photo-1626082866744-32fe3e0850ff?w=500", 
-            status: "cerrado", 
-            horario: "11:00 AM - 09:00 PM",
-            dias: "Lun - Vie"
-        }
+        { nombre: "Burger Galaxy", cat: "Hamburguesas", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500", status: "disponible", horario: "12:00 PM - 11:00 PM", dias: "Lun - Dom" },
+        { nombre: "Pizza Nostra", cat: "Pizza", img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500", status: "saturado", horario: "02:00 PM - 10:00 PM", dias: "Mar - Dom" },
+        { nombre: "Sushi Master", cat: "Sushi", img: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500", status: "disponible", horario: "01:00 PM - 11:00 PM", dias: "Lun - Sáb" },
+        { nombre: "Chicken House", cat: "Pollo", img: "https://images.unsplash.com/photo-1626082866744-32fe3e0850ff?w=500", status: "cerrado", horario: "11:00 AM - 09:00 PM", dias: "Lun - Vie" }
     ];
+
+    // DATOS DE RANKING (Simulados)
+    const stats = {
+        topRestaurantes: [
+            { nombre: "Burger Galaxy", porcentaje: 95 },
+            { nombre: "Sushi Master", porcentaje: 88 },
+            { nombre: "Pizza Nostra", porcentaje: 75 },
+            { nombre: "Chicken House", porcentaje: 60 },
+            { nombre: "Tacos El Profe", porcentaje: 55 }
+        ],
+        topComidas: [
+            { nombre: "Monster Burger", pedidos: 450 },
+            { nombre: "Roll Philadelphia", pedidos: 380 },
+            { nombre: "Pizza Peperoni", pedidos: 310 }
+        ],
+        menosSolicitados: [
+            { nombre: "Ensaladas Fit", porcentaje: 15 },
+            { nombre: "Sopa de Col", porcentaje: 8 }
+        ]
+    };
+
+    function toggleRanking() {
+        const panel = document.getElementById('rankingPanel');
+        const overlay = document.getElementById('rankingOverlay');
+        panel.classList.toggle('active');
+        overlay.style.display = panel.classList.contains('active') ? 'block' : 'none';
+        if(panel.classList.contains('active')) renderStats();
+    }
+
+    function renderStats() {
+        document.getElementById('topRes').innerHTML = stats.topRestaurantes.map(r => `
+            <div style="margin-bottom:15px;">
+                <div class="rank-item"><span>${r.nombre}</span> <span>${r.porcentaje}%</span></div>
+                <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${r.porcentaje}%"></div></div>
+            </div>`).join('');
+
+        document.getElementById('topFood').innerHTML = stats.topComidas.map(f => `
+            <div class="rank-item"><span>📍 ${f.nombre}</span> <b>${f.pedidos} ord.</b></div>`).join('');
+
+        document.getElementById('lowRes').innerHTML = stats.menosSolicitados.map(r => `
+            <div style="margin-bottom:15px;">
+                <div class="rank-item"><span>${r.nombre}</span> <span>${r.porcentaje}%</span></div>
+                <div class="rank-bar-bg"><div class="rank-bar-fill low-demand" style="width:${r.porcentaje}%"></div></div>
+            </div>`).join('');
+    }
 
     function renderRes(lista) {
         const grid = document.getElementById('resGrid');
         grid.innerHTML = lista.map(res => `
             <div class="res-card">
                 <div class="status-badge badge-${res.status}">${res.status}</div>
-                
                 <div class="res-image" style="background-image: url('${res.img}')"></div>
-                
                 <div class="res-info">
                     <h4>${res.nombre}</h4>
                     <p><span>🍴</span> ${res.cat}</p>
                     <p><span>🕒</span> ${res.horario}</p>
-                    <p><span>📅</span> ${res.dias}</p>
-                    
                     <div class="res-actions">
                         <button class="btn btn-order" onclick="window.location.href='menu.html?res=${encodeURIComponent(res.nombre)}'">Ver Menú</button>
-                        <button class="btn btn-reserve" 
-                            ${res.status === 'cerrado' ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''} 
-                            onclick="window.location.href='reserva.html?res=${encodeURIComponent(res.nombre)}'">
-                            ${res.status === 'cerrado' ? 'Cerrado' : 'Reservar'}
-                        </button>
+                        <button class="btn btn-reserve" ${res.status === 'cerrado' ? 'disabled style="opacity:0.5;"' : ''} 
+                            onclick="window.location.href='reserva.html?res=${encodeURIComponent(res.nombre)}'">Reservar</button>
                     </div>
                 </div>
             </div>`).join('');
