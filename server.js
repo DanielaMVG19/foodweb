@@ -64,14 +64,21 @@ app.post("/login", async (req, res) => {
 app.post("/reserve", async (req, res) => {
   try {
     const { fecha, hora, ...resto } = req.body;
-    // Forzamos la interpretación en la zona horaria de México
+
+    // Combinamos fecha y hora. 
+    // Si 'hora' viene como "16:22", se crea correctamente para la tarde.
     const fechaTexto = `${fecha}T${hora}:00`;
+    
+    // Creamos el objeto fecha asegurando que sea la zona horaria de México
     const fechaHora = new Date(new Date(fechaTexto).toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
+
+    console.log(`Guardando reserva: ${fechaHora} (Hora recibida: ${hora})`);
 
     const nuevaReserva = new Reserva({ ...resto, fechaHora });
     await nuevaReserva.save();
     res.status(200).json({ id: nuevaReserva._id });
   } catch (e) {
+    console.error("Error al guardar:", e);
     res.status(500).json({ msg: "Error al guardar reserva" });
   }
 });
