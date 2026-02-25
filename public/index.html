@@ -34,15 +34,7 @@
             font-weight: 800; 
         }
         h3 span { color: var(--dark); }
-
-        form { background: transparent; padding: 0; box-shadow: none; }
-
-        /* Contenedor relativo para el ojito */
-        .pass-container {
-            position: relative;
-            width: 100%;
-        }
-
+        .pass-container { position: relative; width: 100%; }
         input { 
             width: 100%; 
             margin: 12px 0; 
@@ -54,8 +46,6 @@
             transition: 0.3s; 
         }
         input:focus { border-color: var(--secondary); }
-        
-        /* Estilo del ojito */
         .toggle-btn {
             position: absolute;
             right: 15px;
@@ -66,7 +56,6 @@
             font-size: 18px;
             user-select: none;
         }
-
         .btn-login { 
             width: 100%; 
             padding: 14px; 
@@ -81,10 +70,8 @@
             transition: 0.3s; 
         }
         .btn-login:hover { background: var(--secondary); transform: translateY(-2px); }
-        
         .divider { margin: 25px 0; border-bottom: 1px solid #eee; position: relative; }
         .divider span { background: white; padding: 0 15px; position: relative; top: 10px; color: #999; font-size: 14px; }
-        
         .btn-register { 
             width: 100%; 
             padding: 14px; 
@@ -107,7 +94,7 @@
         <h3>Slot<span>Eats</span></h3>
         
         <form id="loginForm">
-            <input type="text" id="userLogin" placeholder="Usuario" required>
+            <input type="email" id="emailLogin" placeholder="Correo Electrónico" required>
             
             <div class="pass-container">
                 <input type="password" id="passLogin" placeholder="Contraseña" required>
@@ -123,14 +110,12 @@
     </div>
 
     <script>
-        // Función para mostrar/ocultar contraseña
         function togglePassword() {
             const passInput = document.getElementById('passLogin');
             const toggleIcon = document.querySelector('.toggle-btn');
-            
             if (passInput.type === "password") {
                 passInput.type = "text";
-                toggleIcon.innerText = "🔒"; // Cambia el icono al estar visible
+                toggleIcon.innerText = "🔒";
             } else {
                 passInput.type = "password";
                 toggleIcon.innerText = "👁️";
@@ -140,9 +125,12 @@
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            const emailValue = document.getElementById('emailLogin').value;
+            const passValue = document.getElementById('passLogin').value;
+
             const data = {
-                username: document.getElementById('userLogin').value,
-                password: document.getElementById('passLogin').value
+                email: emailValue,
+                password: passValue
             };
 
             try {
@@ -155,25 +143,20 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    // --- SEGURIDAD Y CONEXIÓN ---
-                    
-                    // 1. Activamos la marca de sesión
+                    // Guardamos la sesión y el nombre real que viene de la DB
                     localStorage.setItem('sesionActiva', 'true');
-                    
-                    // 2. Guardamos el nombre para el saludo
                     localStorage.setItem('userNombre', result.nombre); 
+                    localStorage.setItem('userEmail', result.email);
                     
                     alert("¡Bienvenido " + result.nombre + "!");
-                    
-                    // 3. Saltamos al Home
                     window.location.href = "home.html"; 
-
                 } else {
-                    alert(result.msg);
+                    // Mostrará "Credenciales inválidas" o el error del server
+                    alert(result.msg || "Error en el inicio de sesión");
                 }
             } catch (error) {
-                alert("Error de conexión con el servidor");
-                console.error(error);
+                alert("No se pudo conectar con el servidor. Verifica tu conexión.");
+                console.error("Error Fetch:", error);
             }
         });
     </script>

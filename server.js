@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
 const QRCode = require('qrcode');
+require('dotenv').config(); // Asegúrate de tener instalado dotenv: npm install dotenv
+
 const app = express();
 
 // Middlewares
@@ -38,28 +40,29 @@ const Reserva = mongoose.model('Reserva', new mongoose.Schema({
 
 // --- RUTAS DE AUTENTICACIÓN ---
 
-// Ruta de Registro (Para crear usuarios nuevos)
+// REGISTRO: Crea un usuario nuevo
 app.post('/register', async (req, res) => {
     try {
-        const nuevoUsuario = new Usuario(req.body);
+        const { nombre, email, password } = req.body;
+        const nuevoUsuario = new Usuario({ nombre, email, password });
         await nuevoUsuario.save();
-        res.status(201).json({ msg: "Usuario creado con éxito", nombre: nuevoUsuario.nombre });
+        res.status(201).json({ msg: "Registro exitoso", nombre: nuevoUsuario.nombre });
     } catch (e) {
-        res.status(400).json({ msg: "Error al registrar (el email podría ya existir)" });
+        res.status(400).json({ msg: "El email ya está registrado o faltan datos." });
     }
 });
 
-// Ruta de Login (Soluciona el error de 'undefined')
+// LOGIN: Busca al usuario y devuelve su nombre
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const usuario = await Usuario.findOne({ email: email });
+        const usuario = await Usuario.findOne({ email });
 
         if (!usuario || usuario.password !== password) {
             return res.status(401).json({ msg: "Credenciales inválidas" });
         }
 
-        // Enviamos el nombre real para que el frontend lo muestre
+        // Enviamos el nombre para que el frontend lo guarde
         res.json({ 
             msg: "Bienvenido", 
             nombre: usuario.nombre, 
@@ -77,9 +80,7 @@ app.post('/reserve', async (req, res) => {
         const nuevaReserva = new Reserva(req.body);
         await nuevaReserva.save();
         res.status(200).json({ msg: "¡Reserva guardada!", id: nuevaReserva._id });
-    } catch (e) { 
-        res.status(500).json({ msg: "Error al guardar" }); 
-    }
+    } catch (e) { res.status(500).json({ msg: "Error al guardar" }); }
 });
 
 app.post('/generar-qr', async (req, res) => {
@@ -89,43 +90,21 @@ app.post('/generar-qr', async (req, res) => {
         if (!reserva) return res.status(404).json({ msg: "No encontrada" });
 
         const ahora = new Date();
-        if (reserva.ultimoQRGenerado) {
-            const dif = (ahora - reserva.ultimoQRGenerado) / (1000 * 60 * 60);
-            if (dif < 24) return res.status(403).json({ msg: `Espera ${Math.ceil(24-dif)}h para otro QR` });
-        }
-
-        const dataQR = `SLOTEATS RESERVA\nRest: ${reserva.restaurante}\nCliente: ${reserva.nombreCliente}\nPersonas: ${reserva.personas}\nFecha: ${reserva.fecha} ${reserva.hora}\nNotas: ${reserva.notas || 'Ninguna'}`;
+        const dataQR = `SLOTEATS RESERVA\nRest: ${reserva.restaurante}\nCliente: ${reserva.nombreCliente}\nFecha: ${reserva.fecha} ${reserva.hora}`;
         
         const qrImagen = await QRCode.toDataURL(dataQR);
         reserva.ultimoQRGenerado = ahora;
         await reserva.save();
         res.json({ qrImagen });
-    } catch (e) { 
-        res.status(500).json({ msg: "Error QR" }); 
-    }
+    } catch (e) { res.status(500).json({ msg: "Error QR" }); }
 });
 
 app.get('/mis-reservas/:nombre', async (req, res) => {
     try {
         const lista = await Reserva.find({ nombreCliente: req.params.nombre }).sort({ registroFecha: -1 });
         res.json(lista);
-    } catch (e) { 
-        res.status(500).send("Error"); 
-    }
+    } catch (e) { res.status(500).send("Error"); }
 });
 
-app.post('/cancelar-reserva', async (req, res) => {
-    try {
-        await Reserva.findByIdAndDelete(req.body.id);
-        res.json({ msg: "Cancelada" });
-    } catch (e) { 
-        res.status(500).send("Error"); 
-    }
-});
-
-// PUERTO (Railway usa process.env.PORT)
 const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor listo en el puerto ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Servidor en puerto ${PORT}`));
