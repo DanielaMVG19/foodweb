@@ -26,7 +26,7 @@ const Usuario = mongoose.model('Usuario', new mongoose.Schema({
 const Reserva = mongoose.model('Reserva', new mongoose.Schema({
     restaurante: String,
     nombreCliente: String,
-    emailCliente: String, // IMPORTANTE: Para saber de quién es la reserva
+    emailCliente: String, 
     personas: Number,
     fecha: String,
     hora: String,
@@ -58,7 +58,9 @@ app.post('/reserve', async (req, res) => {
         const nuevaReserva = new Reserva(req.body);
         await nuevaReserva.save();
         res.status(200).json({ id: nuevaReserva._id });
-    } catch (e) { res.status(500).json({ msg: "Error al guardar reserva" }); }
+    } catch (e) { 
+        res.status(500).json({ msg: "Error al guardar reserva" }); 
+    }
 });
 
 // GENERAR QR (Diseño de Ticket + Colores SlotEats)
@@ -70,12 +72,10 @@ app.post('/generar-qr', async (req, res) => {
         if (!reserva) return res.status(404).json({ msg: "Reserva no encontrada" });
 
         const ahora = new Date();
-        // Validación de 24 horas
         if (reserva.ultimoQRGenerado && (ahora - reserva.ultimoQRGenerado) < 24 * 60 * 60 * 1000) {
             return res.status(429).json({ msg: "Solo puedes generar un QR cada 24 horas." });
         }
 
-        // --- DISEÑO DE TICKET DIGITAL ---
         const ticketTexto = `
 ======= 🍕 SLOTEATS TICKET 🍔 =======
 📍 REST: ${reserva.restaurante.toUpperCase()}
@@ -92,11 +92,10 @@ ${reserva.notas || "Sin notas especiales"}
   ¡Presenta este código al llegar!
 =====================================`;
 
-        // Generar imagen QR con colores personalizados (Naranja SlotEats)
         const qrImagen = await QRCode.toDataURL(ticketTexto, {
             color: {
-                dark: '#e84118',  // Color de los módulos (Naranja)
-                light: '#ffffff'  // Color de fondo (Blanco)
+                dark: '#e84118',  
+                light: '#ffffff'  
             },
             width: 300,
             margin: 2
@@ -107,11 +106,10 @@ ${reserva.notas || "Sin notas especiales"}
 
         res.json({ qrImagen });
     } catch (e) {
-        console.error(e);
         res.status(500).json({ msg: "Error generando el ticket QR" });
     }
 });
-// OBTENER RESERVAS DE UN USUARIO ESPECÍFICO
+
 app.get('/mis-reservas/:email', async (req, res) => {
     try {
         const reservas = await Reserva.find({ emailCliente: req.params.email });
@@ -121,18 +119,19 @@ app.get('/mis-reservas/:email', async (req, res) => {
     }
 });
 
-// CANCELAR RESERVA (Con validación de 1 hora)
 app.delete('/cancelar-reserva/:id', async (req, res) => {
     try {
         const reserva = await Reserva.findById(req.params.id);
         if (!reserva) return res.status(404).json({ msg: "Reserva no encontrada" });
 
-        // Validación de tiempo (1 hora antes)
-        const ahora = new Date();
-        const cita = new Date(`${reserva.fecha}T${reserva.hora}`);
-        const diferenciaHoras = (cita - ahora) / (1000 * 60 * 60);
+        // Calculamos la hora de la cita en milisegundos
+        const cita = new Date(`${reserva.fecha}T${reserva.hora}`).getTime();
+        const ahora = Date.now(); // Hora exacta actual
+        
+        // 3600000 ms = 1 hora
+        const diferenciaMs = cita - ahora;
 
-        if (diferenciaHoras < 1) {
+        if (diferenciaMs < 3600000) {
             return res.status(403).json({ msg: "Falta menos de 1 hora. Llama al restaurante para cancelar." });
         }
 
