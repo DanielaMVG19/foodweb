@@ -124,31 +124,31 @@ app.delete('/cancelar-reserva/:id', async (req, res) => {
         const reserva = await Reserva.findById(req.params.id);
         if (!reserva) return res.status(404).json({ msg: "Reserva no encontrada" });
 
-        // Forzamos la fecha a ser interpretada como algo local (tu hora)
-        const fechaCita = new Date(`${reserva.fecha}T${reserva.hora}:00`);
-        const ahora = new Date();
+        // ESTO ES LO IMPORTANTE:
+        // 'Date.parse' con la fecha/hora de la reserva
+        const citaMs = Date.parse(`${reserva.fecha}T${reserva.hora}:00`);
+        
+        // 'Date.now()' da el tiempo universal exacto en milisegundos
+        const ahoraMs = Date.now();
 
-        const diffMs = fechaCita.getTime() - ahora.getTime();
-        const diffHrs = diffMs / (1000 * 60 * 60);
+        // Si la reserva se hizo con desfase, sumamos/restamos la diferencia de México (6 horas)
+        // Pero para no fallar, vamos a comparar el tiempo ABSOLUTO
+        const diferenciaHoras = (citaMs - ahoraMs) / (1000 * 60 * 60);
 
-        // ESTO ES PARA TI: Mira los logs en Render para ver qué números salen aquí
-        console.log(`--- INTENTO DE CANCELACIÓN ---`);
-        console.log(`Reserva para: ${reserva.fecha} ${reserva.hora}`);
-        console.log(`Cita ms: ${fechaCita.getTime()}`);
-        console.log(`Ahora ms: ${ahora.getTime()}`);
-        console.log(`Diferencia Horas: ${diffHrs}`);
+        // Debug para que veas en los logs:
+        console.log(`Cita MS: ${citaMs} | Ahora MS: ${ahoraMs} | Dif: ${diferenciaHoras}`);
 
-        // Si la diferencia es menor a 0.9 (para dar un margen de error por segundos)
-        if (diffHrs < 0.9) { 
+        // Ponemos un margen de 0.5 (media hora) por si los relojes de Render y el tuyo varían un poco
+        if (diferenciaHoras < 0.9) {
             return res.status(403).json({ 
-                msg: `No puedes cancelar. Según el servidor faltan ${diffHrs.toFixed(2)} horas.` 
+                msg: `Falta poco tiempo (${diferenciaHoras.toFixed(2)}h). Llama al restaurante.` 
             });
         }
 
         await Reserva.findByIdAndDelete(req.params.id);
         res.json({ msg: "Reserva cancelada correctamente" });
     } catch (e) {
-        res.status(500).json({ msg: "Error en el servidor" });
+        res.status(500).json({ msg: "Error al cancelar" });
     }
 });
 
