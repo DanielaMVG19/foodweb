@@ -1,54 +1,142 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8"><title>Mis Reservas - SlotEats</title>
-    <style>
-        body { font-family: sans-serif; background: #fef2f2; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 15px; margin-bottom: 15px; border-left: 5px solid #e84118; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .btn-cancel { background: #ff4757; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; }
-        .btn-cancel:disabled { background: #ccc; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Reservas - SlotEats</title>
+    <link rel="stylesheet" href="style.css"> <style>
+        .reserva-card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .tiempo-falta { font-weight: bold; color: #d35400; }
+        .btn-cancelar { background-color: #e74c3c; color: white; border: none; padding: 8px; cursor: pointer; border-radius: 4px; }
+        .btn-cancelar:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        .aviso-llamar { color: #c0392b; font-size: 0.85em; display: block; margin-top: 5px; }
+        #modalQR { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border: 2px solid black; z-index: 1000; text-align: center; }
+        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
     </style>
 </head>
 <body>
-    <h2>Mis Reservas 📅</h2>
-    <div id="lista">Cargando tus citas...</div>
-    <a href="home.html" style="display:block; margin-top:20px; color:#e84118;">⬅ Volver al Inicio</a>
+    <header>
+        <h1>Mis Reservas</h1>
+        <button onclick="window.location.href='index.html'">Volver</button>
+    </header>
+
+    <main id="listaReservas">
+        <p>Cargando tus reservas...</p>
+    </main>
+
+    <div id="overlay"></div>
+    <div id="modalQR">
+        <h3>Tu Código QR</h3>
+        <img id="imgQR" src="" alt="Código QR" style="width: 200px;">
+        <br><br>
+        <button onclick="cerrarQR()">Cerrar</button>
+    </div>
 
     <script>
-        async function cargar() {
-            const nombre = localStorage.getItem('userNombre'); // Usa el nombre del Login
-            if(!nombre) return location.href = 'index.html';
+        const emailUsuario = localStorage.getItem('userEmail');
 
-            const res = await fetch('/mis-reservas/' + nombre);
-            const reservas = await res.json();
-            
-            document.getElementById('lista').innerHTML = reservas.map(r => {
-                const cita = new Date(`${r.fecha}T${r.hora}`);
-                const horasFaltantes = (cita - new Date()) / (1000 * 60 * 60);
-                const puedeCancelar = horasFaltantes > 2;
-
-                return `
-                    <div class="card">
-                        <h3>${r.restaurante}</h3>
-                        <p><strong>Fecha:</strong> ${r.fecha} | <strong>Hora:</strong> ${r.hora}</p>
-                        <p><i>Notas: ${r.notas || 'Sin notas'}</i></p>
-                        <button class="btn-cancel" ${!puedeCancelar ? 'disabled' : ''} onclick="borrar('${r._id}')">
-                            ${puedeCancelar ? 'Cancelar Reserva' : 'Bloqueado (Falta poco)'}
-                        </button>
-                    </div>`;
-            }).join('');
+        if (!emailUsuario) {
+            alert("Por favor inicia sesión primero");
+            window.location.href = "login.html";
         }
 
-        async function borrar(id) {
-            if(confirm("¿Seguro que quieres cancelar?")) {
-                await fetch('/cancelar-reserva', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ id })
+        async function cargarReservas() {
+            const contenedor = document.getElementById('listaReservas');
+            try {
+                const res = await fetch(`/mis-reservas/${emailUsuario}`);
+                const reservas = await res.json();
+
+                if (reservas.length === 0) {
+                    contenedor.innerHTML = "<p>Aún no tienes reservas.</p>";
+                    return;
+                }
+
+                contenedor.innerHTML = "";
+                reservas.forEach(reserva => {
+                    const infoTiempo = calcularDiferencia(reserva.fecha, reserva.hora);
+                    
+                    const card = document.createElement('div');
+                    card.className = "reserva-card";
+                    card.innerHTML = `
+                        <h3>${reserva.restaurante}</h3>
+                        <p>📅 ${reserva.fecha} | ⏰ ${reserva.hora}</p>
+                        <p>👥 Personas: ${reserva.personas}</p>
+                        <p>📝 Notas: ${reserva.notas || 'Sin notas'}</p>
+                        <p class="tiempo-falta">${infoTiempo.mensaje}</p>
+                        
+                        <button onclick="obtenerQR('${reserva._id}')">Ver QR</button>
+                        
+                        ${infoTiempo.puedeCancelar 
+                            ? `<button class="btn-cancelar" onclick="cancelar('${reserva._id}')">Cancelar Reserva</button>`
+                            : `<span class="aviso-llamar">⚠️ Llamar al restaurante para cancelar reserva</span>`
+                        }
+                    `;
+                    contenedor.appendChild(card);
                 });
-                cargar();
+            } catch (e) {
+                contenedor.innerHTML = "<p>Error al cargar reservas.</p>";
             }
         }
-        cargar();
+
+        function calcularDiferencia(fecha, hora) {
+            const ahora = new Date();
+            const cita = new Date(`${fecha}T${hora}`);
+            const diffMs = cita - ahora;
+            const diffHrs = diffMs / (1000 * 60 * 60);
+
+            if (diffMs < 0) return { mensaje: "Cita finalizada", puedeCancelar: false };
+
+            const horas = Math.floor(diffHrs);
+            const minutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            
+            return {
+                mensaje: `Faltan: ${horas}h ${minutos}m`,
+                puedeCancelar: diffHrs >= 1
+            };
+        }
+
+        async function obtenerQR(id) {
+            try {
+                const res = await fetch('/generar-qr', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reservaId: id })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    document.getElementById('imgQR').src = data.qrImagen;
+                    document.getElementById('modalQR').style.display = 'block';
+                    document.getElementById('overlay').style.display = 'block';
+                } else {
+                    alert(data.msg);
+                }
+            } catch (e) { alert("Error al conectar con el servidor"); }
+        }
+
+        async function cancelar(id) {
+            if (!confirm("¿Seguro que quieres cancelar esta reserva?")) return;
+
+            try {
+                const res = await fetch(`/cancelar-reserva/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                alert(data.msg);
+                cargarReservas(); // Recargar lista
+            } catch (e) { alert("Error al cancelar"); }
+        }
+
+        function cerrarQR() {
+            document.getElementById('modalQR').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        cargarReservas();
     </script>
 </body>
 </html>

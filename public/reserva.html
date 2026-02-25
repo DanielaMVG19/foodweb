@@ -74,12 +74,18 @@
         
         let idNuevaReserva = null;
 
+        // ... (mismo código de arriba hasta la parte de confirmar reserva)
+
         // 1. CONFIRMAR RESERVA
         document.getElementById('btnConfirmar').addEventListener('click', async () => {
             const fechaVal = inputFecha.value;
             const horaVal = document.getElementById('hora').value;
+            const emailUsuario = localStorage.getItem('userEmail'); // <--- NUEVO: Obtenemos el email
 
-            // Validación de seguridad: Comprobar que la fecha/hora no sea del pasado
+            if (!emailUsuario) {
+                return alert("Debes estar logueado para reservar.");
+            }
+
             const ahora = new Date();
             const fechaSeleccionada = new Date(`${fechaVal}T${horaVal}`);
 
@@ -88,12 +94,13 @@
             }
 
             if (fechaSeleccionada < ahora) {
-                return alert("❌ La fecha u hora seleccionada ya ha pasado. Por favor, elige una cita válida.");
+                return alert("❌ La fecha u hora seleccionada ya ha pasado.");
             }
 
             const data = {
                 restaurante: restauranteSeleccionado,
                 nombreCliente: document.getElementById('nombreCliente').value,
+                emailCliente: emailUsuario, // <--- CLAVE: Se envía a MongoDB para ligar la reserva
                 personas: document.getElementById('personas').value,
                 fecha: fechaVal,
                 hora: horaVal,
@@ -112,12 +119,12 @@
                     idNuevaReserva = result.id; 
                     alert("🎉 ¡Reserva guardada!");
                     document.getElementById('resForm').style.display = 'none';
-                    document.getElementById('subTitle').innerText = "Estado: Pendiente de validación.";
+                    document.getElementById('subTitle').innerText = "Reserva confirmada.";
                     document.getElementById('qrSeccion').style.display = 'block';
                 }
             } catch (error) { alert("Error al conectar con el servidor"); }
         });
-
+// ... (resto del script igual)
         // 2. SOLICITAR QR
         document.getElementById('btnGenerarQR').addEventListener('click', async () => {
             try {
