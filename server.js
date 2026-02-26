@@ -3,6 +3,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const path = require("path");
 const QRCode = require("qrcode");
+const bcrypt = require("bcrypt"); 
+const saltRounds = 10; 
 
 const app = express();
 app.use(express.json());
@@ -11,6 +13,7 @@ app.use(express.static(path.join(__dirname, "public")));
 // =====================
 // 🔗 CONEXIÓN MONGODB
 // =====================
+// Asegúrate de que tu IP esté en la lista blanca de MongoDB Atlas (Network Access -> 0.0.0.0/0)
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Conectado"))
   .catch(err => console.error("❌ Error Mongo:", err));
@@ -45,7 +48,7 @@ const Reserva = mongoose.model("Reserva", new mongoose.Schema({
 }));
 
 const Pedido = mongoose.model("Pedido", new mongoose.Schema({
-  restaurante: String, // 👈 AÑADIDO: Para saber de qué restaurante es el pedido
+  restaurante: String, 
   nombreCliente: String,
   emailCliente: String,
   items: Array,
@@ -95,7 +98,9 @@ app.get("/stats-ranking", async (req, res) => {
 // =====================
 app.post("/register", async (req, res) => {
   try {
-    const nuevoUsuario = new Usuario(req.body);
+    const { password, ...datos } = req.body;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const nuevoUsuario = new Usuario({ ...datos, password: hashedPassword });
     await nuevoUsuario.save();
     res.status(201).json({ msg: "Registro exitoso", nombre: nuevoUsuario.nombre });
   } catch (e) {
@@ -105,30 +110,42 @@ app.post("/register", async (req, res) => {
 
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  const usuario = await Usuario.findOne({ email, password });
+  const usuario = await Usuario.findOne({ email });
   if (!usuario) return res.status(401).json({ msg: "Credenciales inválidas" });
+  
+  const esCorrecto = await bcrypt.compare(password, usuario.password);
+  if (!esCorrecto) return res.status(401).json({ msg: "Credenciales inválidas" });
+  
   res.json({ nombre: usuario.nombre, email: usuario.email, tipo: "cliente" });
 });
 
 app.post("/login-staff", async (req, res) => {
-  const emp = await Empleado.findOne({ email: req.body.email, password: req.body.password });
-  if (!emp) return res.status(401).json({ msg: "Acceso denegado Staff" });
-  res.json({ nombre: emp.nombre, email: emp.email, tipo: "staff" });
-});
-
-app.post("/validar-password", async (req, res) => {
   const { email, password } = req.body;
-  const usuario = await Usuario.findOne({ email, password });
-  if (usuario) {
-    res.json({ success: true });
-  } else {
-    res.status(401).json({ success: false, msg: "Contraseña incorrecta" });
-  }
+  const emp = await Empleado.findOne({ email });
+  if (!emp) return res.status(401).json({ msg: "Acceso denegado Staff" });
+
+  const esCorrecto = await bcrypt.compare(password, emp.password);
+  if (!esCorrecto) return res.status(401).json({ msg: "Acceso denegado Staff" });
+
+  res.json({ nombre: emp.nombre, email: emp.email, tipo: "staff" });
 });
 
 // =====================
 // 👑 RUTAS DE ADMINISTRADOR (STAFF)
 // =====================
+
+app.post("/nuevo-staff", async (req, res) => {
+  try {
+    const { nombre, email, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const nuevoEmpleado = new Empleado({ nombre, email, password: hashedPassword });
+    await nuevoEmpleado.save();
+    res.status(201).json({ msg: `✅ Empleado ${nombre} dado de alta.` });
+  } catch (e) {
+    res.status(400).json({ msg: "Error al crear staff. El email podría ya estar en uso." });
+  }
+});
+
 app.get("/admin/pedidos", async (req, res) => {
   try {
     const pedidos = await Pedido.find().sort({ fecha: -1 });
@@ -149,7 +166,7 @@ app.patch("/admin/actualizar-estatus/:id", async (req, res) => {
 });
 
 // =====================
-// 📅 RESERVAS
+// 📅 RESERVAS Y PEDIDOS CLIENTE
 // =====================
 app.post("/reserve", async (req, res) => {
   try {
@@ -173,30 +190,12 @@ app.get("/mis-reservas/:email", async (req, res) => {
   }
 });
 
-app.delete("/cancelar-reserva/:id", async (req, res) => {
-  try {
-    const reserva = await Reserva.findById(req.params.id);
-    if (!reserva) return res.status(404).json({ msg: "Reserva no encontrada" });
-    const ahora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
-    const diferenciaHoras = (reserva.fechaHora - ahora) / (1000 * 60 * 60);
-    if (diferenciaHoras < 0.9) return res.status(403).json({ msg: `Falta poco tiempo. Llama al restaurante.` });
-    await Reserva.findByIdAndDelete(req.params.id);
-    res.json({ msg: "Reserva cancelada correctamente" });
-  } catch (e) {
-    res.status(500).json({ msg: "Error al cancelar" });
-  }
-});
-
-// =====================
-// 🛒 RUTAS DE PEDIDOS
-// =====================
 app.post("/enviar-pedido", async (req, res) => {
   try {
     const nuevoPedido = new Pedido(req.body);
     await nuevoPedido.save();
     res.status(201).json({ success: true, msg: "¡Pedido enviado a cocina!", id: nuevoPedido._id });
   } catch (e) {
-    console.error("Error Pedido:", e);
     res.status(500).json({ msg: "Error al procesar pedido" });
   }
 });
@@ -210,68 +209,28 @@ app.get("/mis-pedidos/:email", async (req, res) => {
   }
 });
 
-app.delete("/cancelar-pedido/:id", async (req, res) => {
-  try {
-    const pedido = await Pedido.findById(req.params.id);
-    if (!pedido) return res.status(404).json({ msg: "Pedido no encontrado" });
-    
-    // Si el estatus ya no es "Recibido", no se puede cancelar
-    if (pedido.estatus !== "Recibido") {
-        return res.status(403).json({ msg: "El pedido ya está en camino o preparación." });
-    }
-
-    const ahora = new Date();
-    const minutosTranscurridos = (ahora - pedido.fecha) / (1000 * 60);
-    const tiempoLimite = pedido.distanciaKm < 2 ? 2 : 5;
-    
-    if (minutosTranscurridos > tiempoLimite) {
-      return res.status(403).json({ msg: "Tiempo límite de cancelación excedido." });
-    }
-    
-    await Pedido.findByIdAndDelete(req.params.id);
-    res.json({ msg: "Pedido cancelado correctamente" });
-  } catch (e) {
-    res.status(500).json({ msg: "Error al cancelar pedido" });
-  }
-});
-
 // =====================
-// 🎟 CÓDIGO QR Y UTILIDADES
+// 🎟 UTILIDADES DE SISTEMA
 // =====================
-app.post("/generar-qr", async (req, res) => {
-  try {
-    const { reservaId } = req.body;
-    const reserva = await Reserva.findById(reservaId);
-    if (!reserva) return res.status(404).json({ msg: "Reserva no encontrada" });
-    
-    const ahora = new Date();
-    // Permitir regenerar si han pasado más de 24 horas o si es la primera vez
-    if (reserva.ultimoQRGenerado && (ahora - reserva.ultimoQRGenerado) < 24 * 60 * 60 * 1000) {
-      // Opcional: Podrías devolver el mismo QR en lugar de un error 429
-    }
-    
-    const ticketTexto = `======= 🍕 SLOTEATS TICKET 🍔 =======\nID: ${reserva._id}\nREST: ${reserva.restaurante.toUpperCase()}\nCLIENTE: ${reserva.nombreCliente}`;
-    const qrImagen = await QRCode.toDataURL(ticketTexto, { color: { dark: "#e84118" }, width: 300 });
-    
-    reserva.ultimoQRGenerado = ahora;
-    await reserva.save();
-    res.json({ qrImagen });
-  } catch (e) {
-    res.status(500).json({ msg: "Error generando QR" });
-  }
-});
 
-app.post("/setup-admin", async (req, res) => {
-  const existe = await Empleado.findOne({ email: "admin1@sloteats.com" });
-  if (existe) return res.send("Admin ya existe en la base de datos.");
-  const nuevoAdmin = new Empleado({
-    nombre: "Administrador Principal",
-    email: "admin1@sloteats.com",
-    password: "adminpassword123",
-    rol: "admin"
-  });
-  await nuevoAdmin.save();
-  res.send("✅ Administrador creado con éxito.");
+// MODIFICADA A GET: Para que funcione entrando directamente a la URL en el navegador
+app.get("/setup-admin", async (req, res) => {
+  try {
+    const existe = await Empleado.findOne({ email: "admin1@sloteats.com" });
+    if (existe) return res.send("<h1>El Administrador ya existe en la base de datos.</h1>");
+    
+    const hashedPassword = await bcrypt.hash("adminpassword123", saltRounds);
+    const nuevoAdmin = new Empleado({
+      nombre: "Administrador Principal",
+      email: "admin1@sloteats.com",
+      password: hashedPassword,
+      rol: "admin"
+    });
+    await nuevoAdmin.save();
+    res.send("<h1>✅ Administrador creado con éxito (Encriptado).</h1><p>Ya puedes iniciar sesión como Staff.</p>");
+  } catch (e) {
+    res.status(500).send("Error al configurar admin: " + e.message);
+  }
 });
 
 app.get("/limpiar-todo", async (req, res) => {

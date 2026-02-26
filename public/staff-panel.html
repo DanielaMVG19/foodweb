@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>SlotEats - Panel de Staff</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #2f3542; color: white; padding: 20px; }
+        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: #57606f; border-radius: 12px; padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); transition: 0.3s; position: relative; }
+        .status-select { width: 100%; padding: 10px; border-radius: 8px; margin-top: 10px; background: #2f3542; color: white; border: 1px solid #ffa502; }
+        .cliente-info { border-bottom: 1px solid #747d8c; padding-bottom: 10px; margin-bottom: 10px; }
+        .badge { background: #ffa502; color: #2f3542; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        
+        /* Animación para pedidos nuevos */
+        @keyframes flash {
+            0% { border: 2px solid transparent; }
+            50% { border: 2px solid #ffa502; box-shadow: 0 0 20px #ffa502; }
+            100% { border: 2px solid transparent; }
+        }
+        .nuevo-pedido { animation: flash 2s infinite; }
+
+        .admin-section { 
+            background: #3d465a; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 1px solid #ffa502; display: none; 
+        }
+        .admin-section input { padding: 10px; border-radius: 6px; border: none; margin-right: 10px; margin-bottom: 10px; width: 200px; }
+        
+        .btn-logout { background: #ff4757; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-logout:hover { background: #ff6b81; }
+        
+        .btn-add { background: #ffa502; color: #2f3542; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        
+        .filter-section { margin-bottom: 20px; background: #474787; padding: 15px; border-radius: 10px; display: flex; align-items: center; gap: 15px; }
+        .filter-select { padding: 8px; border-radius: 5px; background: white; color: #2f3542; border: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="header-flex">
+        <h1>👨‍🍳 Panel de Pedidos Entrantes</h1>
+        <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+    </div>
+
+    <div id="seccionAltaStaff" class="admin-section">
+        <h2 style="margin-top:0; font-size: 18px; color: #ffa502;">➕ Registrar Nuevo Miembro del Staff</h2>
+        <div style="display: flex; flex-wrap: wrap;">
+            <input type="text" id="newStaffNombre" placeholder="Nombre completo">
+            <input type="email" id="newStaffEmail" placeholder="Email (@sloteats.com)">
+            <input type="password" id="newStaffPass" placeholder="Contraseña">
+            <button class="btn-add" onclick="crearNuevoStaff()">Dar de Alta</button>
+        </div>
+    </div>
+
+    <div class="filter-section">
+        <span>🔍 Filtrar por Restaurante:</span>
+        <select id="filtroRestaurante" class="filter-select" onchange="cargarPedidosStaff()">
+            <option value="todos">Todos los restaurantes</option>
+            <option value="Burger Galaxy">Burger Galaxy</option>
+            <option value="Pizza Nostra">Pizza Nostra</option>
+            <option value="Sushi Master">Sushi Master</option>
+            <option value="Chicken House">Chicken House</option>
+            <option value="Taco Planet">Taco Planet</option>
+        </select>
+        <span id="labelEstado" style="margin-left: auto; font-size: 12px; color: #2ed573;">● Conectado - Escuchando pedidos</span>
+    </div>
+
+    <div class="grid" id="listaStaff"></div>
+
+    <audio id="notificacionSonido" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"></audio>
+
+    <script>
+        let cantidadPedidosAnterior = 0;
+        let esPrimeraCarga = true;
+
+        // Seguridad básica: Si no hay email en localStorage, devolver al login
+        const userEmail = localStorage.getItem('userEmail');
+        if (!userEmail) {
+            window.location.href = "index.html"; 
+        }
+
+        // Mostrar sección admin solo para el jefe
+        if (userEmail === 'admin1@sloteats.com') {
+            document.getElementById('seccionAltaStaff').style.display = 'block';
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = "index.html";
+        }
+
+        async function cargarPedidosStaff() {
+            try {
+                const res = await fetch('/admin/pedidos');
+                const pedidos = await res.json();
+                
+                // Lógica de notificación sonora
+                if (!esPrimeraCarga && pedidos.length > cantidadPedidosAnterior) {
+                    document.getElementById('notificacionSonido').play().catch(e => console.log("Esperando interacción del usuario para audio"));
+                }
+                
+                const filtro = document.getElementById('filtroRestaurante').value;
+                const pedidosFiltrados = filtro === "todos" ? pedidos : pedidos.filter(p => p.restaurante === filtro);
+
+                const lista = document.getElementById('listaStaff');
+                if (pedidosFiltrados.length === 0) {
+                    lista.innerHTML = `<p style="opacity:0.5">No hay pedidos pendientes para ${filtro}.</p>`;
+                    cantidadPedidosAnterior = pedidos.length;
+                    esPrimeraCarga = false;
+                    return;
+                }
+
+                lista.innerHTML = pedidosFiltrados.map((p, index) => {
+                    // Solo animamos si es realmente nuevo y no es la carga inicial
+                    const esNuevo = (pedidos.length > cantidadPedidosAnterior && index === 0) ? 'nuevo-pedido' : '';
+                    
+                    return `
+                    <div class="card ${esNuevo}">
+                        <div class="cliente-info">
+                            <span class="badge">${p.restaurante}</span>
+                            <h3>${p.nombreCliente}</h3>
+                            <small>📍 ${p.ubicacion}</small>
+                        </div>
+                        <div style="font-size: 14px; margin-bottom: 10px;">
+                            ${p.items.map(i => `• ${i.nombre}`).join('<br>')}
+                        </div>
+                        <hr style="border: 0.5px solid #747d8c;">
+                        <div style="display:flex; justify-content:space-between">
+                            <strong>Total: $${p.total}</strong>
+                            <span style="font-size:10px; opacity:0.6">${new Date(p.fecha).toLocaleTimeString()}</span>
+                        </div>
+                        
+                        <select class="status-select" onchange="actualizarEstatus('${p._id}', this.value)">
+                            <option value="Recibido" ${p.estatus === 'Recibido' ? 'selected' : ''}>Recibido</option>
+                            <option value="En preparación" ${p.estatus === 'En preparación' ? 'selected' : ''}>En preparación</option>
+                            <option value="En camino" ${p.estatus === 'En camino' ? 'selected' : ''}>En camino</option>
+                            <option value="Entregado" ${p.estatus === 'Entregado' ? 'selected' : ''}>Entregado</option>
+                        </select>
+                    </div>
+                `}).join('');
+
+                cantidadPedidosAnterior = pedidos.length;
+                esPrimeraCarga = false;
+            } catch (error) {
+                document.getElementById('labelEstado').innerHTML = "● Error de conexión";
+                document.getElementById('labelEstado').style.color = "#ff4757";
+            }
+        }
+
+        async function actualizarEstatus(id, nuevoEstatus) {
+            try {
+                await fetch(`/admin/actualizar-estatus/${id}`, {
+                    method: 'PATCH',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ nuevoEstatus })
+                });
+                // No ponemos alert para no interrumpir el flujo de cocina, el cambio se ve al refrescar
+            } catch (error) {
+                alert("Error de conexión");
+            }
+        }
+
+        async function crearNuevoStaff() {
+            const nombre = document.getElementById('newStaffNombre').value;
+            const email = document.getElementById('newStaffEmail').value;
+            const password = document.getElementById('newStaffPass').value;
+
+            if (!nombre || !email || !password) return alert("Faltan datos");
+
+            const res = await fetch('/nuevo-staff', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ nombre, email, password })
+            });
+            const data = await res.json();
+            alert(data.msg);
+            location.reload(); // Recargar para limpiar
+        }
+
+        setInterval(cargarPedidosStaff, 10000);
+        cargarPedidosStaff();
+    </script>
+</body>
+</html>
