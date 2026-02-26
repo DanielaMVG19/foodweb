@@ -66,7 +66,6 @@
         }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; }
 
-        /* --- ESTILOS NUEVOS PARA EL MAPA --- */
         #mapOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; backdrop-filter: blur(4px); }
         #mapModal {
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -126,7 +125,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // BASE DE DATOS DE RESTAURANTES (Coordenadas Reales CDMX)
+    // BASE DE DATOS DE RESTAURANTES (Coordenadas CDMX)
     const DB_RES = {
         "Burger Galaxy": { lat: 19.4339, lng: -99.1389 },
         "Pizza Nostra": { lat: 19.4194, lng: -99.1673 },
@@ -146,17 +145,19 @@
     let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
     let map, marker;
     let datosLogistica = { km: 0, costo: 0, calle: "" };
-    let resActualCoord = { lat: 19.4326, lng: -99.1332 }; // Default
+    let resActualCoord = { lat: 19.4326, lng: -99.1332 }; 
 
     function cargarMenu() {
         const urlParams = new URLSearchParams(window.location.search);
         const resNombre = urlParams.get('res');
+        
         if(resNombre) {
             document.getElementById('restauranteTitulo').innerText = resNombre;
             if(DB_RES[resNombre]) resActualCoord = DB_RES[resNombre];
         }
 
         const listaFiltrada = resNombre ? platillosBase.filter(p => p.res === resNombre) : platillosBase;
+        
         document.getElementById('menuLista').innerHTML = listaFiltrada.map(p => `
             <div class="food-card">
                 <div class="food-info">
@@ -168,8 +169,8 @@
             </div>
         `).join('');
 
-        const usuarioSesion = JSON.parse(localStorage.getItem('usuario'));
-        if(usuarioSesion) document.getElementById('nombrePedido').value = usuarioSesion.nombre;
+        const userNombre = localStorage.getItem('userNombre');
+        if(userNombre) document.getElementById('nombrePedido').value = userNombre;
         
         actualizarInterfazCarrito();
     }
@@ -191,6 +192,7 @@
         document.getElementById('cartCount').innerText = carrito.length;
         const lista = document.getElementById('cartItems');
         let total = 0;
+        
         if (carrito.length === 0) {
             lista.innerHTML = `<p style="text-align:center; color:#999; margin-top:50px;">Tu bolsita está vacía 🌮</p>`;
         } else {
@@ -210,7 +212,6 @@
         document.getElementById('cartOverlay').style.display = document.getElementById('cartPanel').classList.contains('active') ? 'block' : 'none';
     }
 
-    // --- LÓGICA DE MAPA Y LOGÍSTICA ---
     function abrirConfirmacionMapa() {
         if(carrito.length === 0 || !document.getElementById('nombrePedido').value) {
             return alert("Completa tu nombre y agrega comida.");
@@ -225,6 +226,7 @@
             marker = L.marker([resActualCoord.lat, resActualCoord.lng], {draggable: true}).addTo(map);
             marker.on('dragend', (e) => calcularDistanciaReal(e.target.getLatLng()));
         }
+        // Calcular logística inicial al abrir
         calcularDistanciaReal(marker.getLatLng());
     }
 
@@ -234,14 +236,13 @@
     }
 
     function calcularDistanciaReal(pos) {
-        // Fórmula de Haversine
         const R = 6371;
         const dLat = (pos.lat - resActualCoord.lat) * Math.PI / 180;
         const dLon = (pos.lng - resActualCoord.lng) * Math.PI / 180;
         const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(resActualCoord.lat * Math.PI / 180) * Math.cos(pos.lat * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
         const km = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
         
-        const costoEnvio = km * 12; // $12 por km
+        const costoEnvio = km * 12; 
         datosLogistica = { km: km.toFixed(2), costo: costoEnvio.toFixed(2) };
 
         document.getElementById('txtKm').innerText = km.toFixed(2) + " km";
@@ -250,17 +251,21 @@
         fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.lat}&lon=${pos.lng}`)
             .then(r => r.json()).then(data => {
                 datosLogistica.calle = data.display_name;
-                document.getElementById('txtCalle').innerText = data.display_name.split(',')[0] + ", " + data.display_name.split(',')[1];
+                const partes = data.display_name.split(',');
+                document.getElementById('txtCalle').innerText = partes[0] + (partes[1] ? ", " + partes[1] : "");
             });
     }
 
     async function enviarPedidoFinal() {
         const subtotal = carrito.reduce((s, p) => s + p.precio, 0);
-        const usuarioSesion = JSON.parse(localStorage.getItem('usuario'));
+        // CORRECCIÓN INTEGRADA: Extraer email del localStorage para que el server lo reciba bien
+        const emailCliente = localStorage.getItem('userEmail') || "invitado@mail.com";
+        const restauranteNombre = document.getElementById('restauranteTitulo').innerText;
 
         const pedidoData = {
+            restaurante: restauranteNombre,
             nombreCliente: document.getElementById('nombrePedido').value,
-            emailCliente: usuarioSesion ? usuarioSesion.email : "invitado@mail.com",
+            emailCliente: emailCliente,
             items: carrito,
             total: (parseFloat(subtotal) + parseFloat(datosLogistica.costo)).toFixed(2),
             ubicacion: datosLogistica.calle,
@@ -277,7 +282,10 @@
             if (response.ok) {
                 alert("🚀 ¡Pedido confirmado! Te redirigimos al rastreo.");
                 localStorage.removeItem('carrito');
-                window.location.href = "pedidos.html";
+                window.location.href = "mis-pedidos.html"; 
+            } else {
+                const err = await response.json();
+                alert("Error del servidor: " + err.msg);
             }
         } catch (e) {
             alert("Error de conexión con el servidor.");

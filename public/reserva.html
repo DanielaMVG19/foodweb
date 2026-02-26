@@ -121,7 +121,8 @@
                 personas: document.getElementById('personas').value,
                 fecha: fechaVal,
                 hora: horaVal,
-                notas: document.getElementById('notas').value
+                notas: document.getElementById('notas').value,
+                fechaHora: fechaSeleccionada.toISOString() // Agregado para el servidor
             };
 
             try {

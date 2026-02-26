@@ -34,10 +34,12 @@
         }
         @keyframes shine { 0% { left: -60%; } 20% { left: 120%; } 100% { left: 120%; } }
 
-        /* Estilo para los botones de navegación */
         .btn-my-reservations { background: var(--light); color: var(--primary); border: 2px solid var(--primary); }
-        .btn-my-orders { background: var(--primary); color: white; } /* Color naranja para pedidos */
+        .btn-my-orders { background: var(--primary); color: white; } 
         .btn-logout { background: #f1f2f6; color: var(--secondary); }
+
+        /* Panel Admin Botón rápido */
+        .btn-admin-view { background: var(--dark); color: white; display: none; }
 
         #rankingPanel {
             position: fixed; top: 0; right: -400px; width: 350px; height: 100%;
@@ -90,11 +92,12 @@
     </div>
     <div class="user-controls">
         <div id="welcomeMsg" style="font-weight: 600; color: var(--primary); margin-right: 10px;">Hola, Gourmet</div>
-        <button class="btn-nav btn-ranking" onclick="toggleRanking()">⭐ Ranking</button>
         
+        <a href="admin.html" id="btnAdminPanel" class="btn-nav btn-admin-view">🛠️ Panel Admin</a>
+        
+        <button class="btn-nav btn-ranking" onclick="toggleRanking()">⭐ Ranking</button>
         <a href="pedidos.html" class="btn-nav btn-my-orders">🥡 Mis Pedidos</a>
         <a href="mis-reservas.html" class="btn-nav btn-my-reservations">📅 Reservas</a>
-        
         <button class="btn-nav btn-logout" onclick="cerrarSesion()">Salir 🚪</button>
     </div>
 </header>
@@ -141,9 +144,15 @@
 </div>
 
 <script>
-    if (localStorage.getItem('sesionActiva') !== 'true') window.location.href = 'index.html';
+    // --- SEGURIDAD ---
+    if (localStorage.getItem('sesionActiva') !== 'true') {
+        window.location.href = 'index.html';
+    }
 
-    function cerrarSesion() { localStorage.clear(); window.location.href = 'index.html'; }
+    function cerrarSesion() { 
+        localStorage.clear(); 
+        window.location.href = 'index.html'; 
+    }
 
     const restaurantes = [
         { nombre: "Burger Galaxy", cat: "Hamburguesas", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500", status: "disponible", horario: "12:00 PM - 11:00 PM" },
@@ -191,6 +200,7 @@
                 content.style.opacity = "1";
             } catch (e) {
                 console.error("Error cargando stats");
+                document.getElementById('statsContent').innerHTML = "<p style='text-align:center; color:red;'>Error al conectar con el servidor.</p>";
             } finally {
                 loader.style.display = "none";
             }
@@ -208,7 +218,7 @@
                     <p style="font-size:13px; color:#666; margin:5px 0;">🕒 ${res.horario}</p>
                     <div class="res-actions">
                         <button class="btn btn-order" onclick="window.location.href='menu.html?res=${encodeURIComponent(res.nombre)}'">Ver Menú</button>
-                        <button class="btn btn-reserve" ${res.status === 'cerrado' ? 'disabled style="opacity:0.4;"' : ''} 
+                        <button class="btn btn-reserve" ${res.status === 'cerrado' ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''} 
                             onclick="window.location.href='reserva.html?res=${encodeURIComponent(res.nombre)}'">Reservar</button>
                     </div>
                 </div>
@@ -228,7 +238,17 @@
     }
 
     window.onload = () => {
-        document.getElementById('welcomeMsg').innerText = "Hola, " + (localStorage.getItem('userNombre') || 'Gourmet');
+        // --- LÓGICA DE USUARIO ---
+        const nombre = localStorage.getItem('userNombre') || 'Gourmet';
+        const tipo = localStorage.getItem('userTipo');
+        
+        document.getElementById('welcomeMsg').innerText = "Hola, " + nombre;
+
+        // Mostrar botón de admin solo si es staff
+        if (tipo === 'staff') {
+            document.getElementById('btnAdminPanel').style.display = 'flex';
+        }
+
         renderRes(restaurantes);
     };
 </script>

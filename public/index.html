@@ -128,13 +128,17 @@
             const emailValue = document.getElementById('emailLogin').value;
             const passValue = document.getElementById('passLogin').value;
 
+            // Lógica Pro: Detectar si el correo es de staff/empleado
+            const esStaff = emailValue.toLowerCase().endsWith('@sloteats.com');
+            const rutaApi = esStaff ? '/login-staff' : '/login';
+
             const data = {
                 email: emailValue,
                 password: passValue
             };
 
             try {
-                const response = await fetch('/login', {
+                const response = await fetch(rutaApi, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -143,15 +147,24 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    // Guardamos la sesión y el nombre real que viene de la DB
+                    // Guardamos la sesión con el tipo de usuario
                     localStorage.setItem('sesionActiva', 'true');
                     localStorage.setItem('userNombre', result.nombre); 
                     localStorage.setItem('userEmail', result.email);
-                    
+                    localStorage.setItem('userTipo', result.tipo); // 'cliente' o 'staff'
+
+                    // Objeto completo para compatibilidad
+                    localStorage.setItem('usuario', JSON.stringify(result));
+
                     alert("¡Bienvenido " + result.nombre + "!");
-                    window.location.href = "home.html"; 
+
+                    // Redirección basada en el tipo de usuario
+                    if (result.tipo === 'staff') {
+                        window.location.href = "admin.html";
+                    } else {
+                        window.location.href = "home.html"; 
+                    }
                 } else {
-                    // Mostrará "Credenciales inválidas" o el error del server
                     alert(result.msg || "Error en el inicio de sesión");
                 }
             } catch (error) {

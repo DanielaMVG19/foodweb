@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>SlotEats - Panel de Control</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #2f3542; }
+        header { background: #e84118; color: white; padding: 20px; border-radius: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(232, 65, 24, 0.2); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-left: 8px solid #e84118; transition: 0.3s; }
+        .card.completado { border-left-color: #2ed573; opacity: 0.8; }
+        h3 { margin: 0 0 10px 0; color: #2f3542; }
+        .items { background: #f8f9fa; padding: 10px; border-radius: 8px; font-size: 14px; margin: 10px 0; }
+        .btn-ready { width: 100%; padding: 12px; background: #2ed573; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .btn-ready:hover { background: #7bed9f; }
+        .badge { background: #dfe4ea; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>👨‍🍳 Panel de Pedidos</h1>
+        <div id="infoAdmin">Cargando...</div>
+        <button onclick="cerrarSesion()" style="background:rgba(255,255,255,0.2); border:none; color:white; padding:8px 15px; border-radius:8px; cursor:pointer;">Cerrar Sesión</button>
+    </header>
+
+    <div class="grid" id="listaPedidos">
+        </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('usuario'));
+        if (!user || user.tipo !== 'staff') {
+            window.location.href = "index.html";
+        }
+        document.getElementById('infoAdmin').innerText = `Empleado: ${user.nombre}`;
+
+        async function cargarPedidos() {
+            const res = await fetch('/admin/pedidos');
+            const pedidos = await res.json();
+            const contenedor = document.getElementById('listaPedidos');
+            
+            contenedor.innerHTML = pedidos.map(p => `
+                <div class="card ${p.estatus === 'Entregado' ? 'completado' : ''}">
+                    <div style="display:flex; justify-content:space-between; align-items:center">
+                        <span class="badge">${p.estatus}</span>
+                        <small>${new Date(p.fecha).toLocaleTimeString()}</small>
+                    </div>
+                    <h3>${p.nombreCliente}</h3>
+                    <p style="font-size:13px; color:#747d8c;">📍 ${p.ubicacion}</p>
+                    <div class="items">
+                        ${p.items.map(item => `• ${item.nombre} x${item.cantidad || 1}`).join('<br>')}
+                    </div>
+                    <p><b>Total: $${p.total}</b></p>
+                    ${p.estatus !== 'Entregado' ? 
+                        `<button class="btn-ready" onclick="marcarEntregado('${p._id}')">MARCAR ENTREGADO ✅</button>` : 
+                        '<p style="text-align:center; color:#2ed573; font-weight:bold;">¡PEDIDO COMPLETADO!</p>'}
+                </div>
+            `).join('');
+        }
+
+        async function marcarEntregado(id) {
+            await fetch(`/admin/actualizar-estatus/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nuevoEstatus: 'Entregado' })
+            });
+            cargarPedidos();
+        }
+
+        function cerrarSesion() { localStorage.clear(); window.location.href = "index.html"; }
+
+        setInterval(cargarPedidos, 5000); // Refresco automático
+        cargarPedidos();
+    </script>
+</body>
+</html>

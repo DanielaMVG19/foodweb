@@ -27,6 +27,13 @@ const Usuario = mongoose.model("Usuario", new mongoose.Schema({
   password: { type: String, required: true }
 }));
 
+const Empleado = mongoose.model("Empleado", new mongoose.Schema({
+  nombre: String,
+  email: { type: String, unique: true, required: true },
+  password: { type: String, required: true },
+  rol: { type: String, default: "staff" } 
+}));
+
 const Reserva = mongoose.model("Reserva", new mongoose.Schema({
   restaurante: String,
   nombreCliente: String,
@@ -37,16 +44,16 @@ const Reserva = mongoose.model("Reserva", new mongoose.Schema({
   ultimoQRGenerado: { type: Date, default: null }
 }));
 
-// NUEVO: Modelo de Pedidos para el Carrito Global
 const Pedido = mongoose.model("Pedido", new mongoose.Schema({
+  restaurante: String, // 👈 AÑADIDO: Para saber de qué restaurante es el pedido
   nombreCliente: String,
   emailCliente: String,
   items: Array,
   total: Number,
   ubicacion: String,
-  distanciaKm: Number, // Para lógica de cancelación pro
+  distanciaKm: Number, 
   fecha: { type: Date, default: Date.now },
-  estatus: { type: String, default: "Recibido" } // Recibido, Preparando, En Camino
+  estatus: { type: String, default: "Recibido" } 
 }));
 
 // =====================
@@ -54,7 +61,7 @@ const Pedido = mongoose.model("Pedido", new mongoose.Schema({
 // =====================
 app.get("/stats-ranking", async (req, res) => {
   try {
-    const todosLosRes = ["Burger Galaxy", "Pizza Nostra", "Sushi Master", "Chicken House"];
+    const todosLosRes = ["Burger Galaxy", "Pizza Nostra", "Sushi Master", "Chicken House", "Taco Planet"];
     const rankingRes = await Reserva.aggregate([
       { $group: { _id: "$restaurante", total: { $sum: 1 } } },
       { $sort: { total: -1 } }
@@ -84,7 +91,7 @@ app.get("/stats-ranking", async (req, res) => {
 });
 
 // =====================
-// 🔐 RUTAS DE USUARIO
+// 🔐 RUTAS DE ACCESO
 // =====================
 app.post("/register", async (req, res) => {
   try {
@@ -100,7 +107,45 @@ app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   const usuario = await Usuario.findOne({ email, password });
   if (!usuario) return res.status(401).json({ msg: "Credenciales inválidas" });
-  res.json({ nombre: usuario.nombre, email: usuario.email });
+  res.json({ nombre: usuario.nombre, email: usuario.email, tipo: "cliente" });
+});
+
+app.post("/login-staff", async (req, res) => {
+  const emp = await Empleado.findOne({ email: req.body.email, password: req.body.password });
+  if (!emp) return res.status(401).json({ msg: "Acceso denegado Staff" });
+  res.json({ nombre: emp.nombre, email: emp.email, tipo: "staff" });
+});
+
+app.post("/validar-password", async (req, res) => {
+  const { email, password } = req.body;
+  const usuario = await Usuario.findOne({ email, password });
+  if (usuario) {
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ success: false, msg: "Contraseña incorrecta" });
+  }
+});
+
+// =====================
+// 👑 RUTAS DE ADMINISTRADOR (STAFF)
+// =====================
+app.get("/admin/pedidos", async (req, res) => {
+  try {
+    const pedidos = await Pedido.find().sort({ fecha: -1 });
+    res.json(pedidos);
+  } catch (e) {
+    res.status(500).json({ msg: "Error al obtener pedidos globales" });
+  }
+});
+
+app.patch("/admin/actualizar-estatus/:id", async (req, res) => {
+  try {
+    const { nuevoEstatus } = req.body;
+    await Pedido.findByIdAndUpdate(req.params.id, { estatus: nuevoEstatus });
+    res.json({ msg: "Pedido actualizado con éxito" });
+  } catch (e) {
+    res.status(500).json({ msg: "Error al actualizar pedido" });
+  }
 });
 
 // =====================
@@ -121,7 +166,7 @@ app.post("/reserve", async (req, res) => {
 
 app.get("/mis-reservas/:email", async (req, res) => {
   try {
-    const reservas = await Reserva.find({ emailCliente: req.params.email });
+    const reservas = await Reserva.find({ emailCliente: req.params.email }).sort({ fechaHora: -1 });
     res.json(reservas);
   } catch (e) {
     res.status(500).json({ msg: "Error al obtener reservas" });
@@ -143,14 +188,15 @@ app.delete("/cancelar-reserva/:id", async (req, res) => {
 });
 
 // =====================
-// 🛒 RUTAS DE PEDIDOS (NUEVO)
+// 🛒 RUTAS DE PEDIDOS
 // =====================
 app.post("/enviar-pedido", async (req, res) => {
   try {
     const nuevoPedido = new Pedido(req.body);
     await nuevoPedido.save();
-    res.status(201).json({ success: true, msg: "¡Pedido enviado a cocina!" });
+    res.status(201).json({ success: true, msg: "¡Pedido enviado a cocina!", id: nuevoPedido._id });
   } catch (e) {
+    console.error("Error Pedido:", e);
     res.status(500).json({ msg: "Error al procesar pedido" });
   }
 });
@@ -168,18 +214,20 @@ app.delete("/cancelar-pedido/:id", async (req, res) => {
   try {
     const pedido = await Pedido.findById(req.params.id);
     if (!pedido) return res.status(404).json({ msg: "Pedido no encontrado" });
-
-    // LÓGICA PRO: Cancelación basada en tiempo/distancia
-    const ahora = new Date();
-    const minutosTranscurridos = (ahora - pedido.fecha) / (1000 * 60);
     
-    // Si la distancia es corta (< 2km), solo damos 2 min. Si es larga, 5 min.
-    const tiempoLimite = pedido.distanciaKm < 2 ? 2 : 5;
-
-    if (minutosTranscurridos > tiempoLimite) {
-      return res.status(403).json({ msg: "El pedido ya está en preparación y no puede cancelarse." });
+    // Si el estatus ya no es "Recibido", no se puede cancelar
+    if (pedido.estatus !== "Recibido") {
+        return res.status(403).json({ msg: "El pedido ya está en camino o preparación." });
     }
 
+    const ahora = new Date();
+    const minutosTranscurridos = (ahora - pedido.fecha) / (1000 * 60);
+    const tiempoLimite = pedido.distanciaKm < 2 ? 2 : 5;
+    
+    if (minutosTranscurridos > tiempoLimite) {
+      return res.status(403).json({ msg: "Tiempo límite de cancelación excedido." });
+    }
+    
     await Pedido.findByIdAndDelete(req.params.id);
     res.json({ msg: "Pedido cancelado correctamente" });
   } catch (e) {
@@ -188,19 +236,23 @@ app.delete("/cancelar-pedido/:id", async (req, res) => {
 });
 
 // =====================
-// 🎟 CÓDIGO QR
+// 🎟 CÓDIGO QR Y UTILIDADES
 // =====================
 app.post("/generar-qr", async (req, res) => {
   try {
     const { reservaId } = req.body;
     const reserva = await Reserva.findById(reservaId);
     if (!reserva) return res.status(404).json({ msg: "Reserva no encontrada" });
+    
     const ahora = new Date();
+    // Permitir regenerar si han pasado más de 24 horas o si es la primera vez
     if (reserva.ultimoQRGenerado && (ahora - reserva.ultimoQRGenerado) < 24 * 60 * 60 * 1000) {
-      return res.status(429).json({ msg: "Solo puedes generar un QR cada 24 horas." });
+      // Opcional: Podrías devolver el mismo QR en lugar de un error 429
     }
-    const ticketTexto = `======= 🍕 SLOTEATS TICKET 🍔 =======\nID: ${reserva._id}\nREST: ${reserva.restaurante.toUpperCase()}`;
+    
+    const ticketTexto = `======= 🍕 SLOTEATS TICKET 🍔 =======\nID: ${reserva._id}\nREST: ${reserva.restaurante.toUpperCase()}\nCLIENTE: ${reserva.nombreCliente}`;
     const qrImagen = await QRCode.toDataURL(ticketTexto, { color: { dark: "#e84118" }, width: 300 });
+    
     reserva.ultimoQRGenerado = ahora;
     await reserva.save();
     res.json({ qrImagen });
@@ -209,9 +261,19 @@ app.post("/generar-qr", async (req, res) => {
   }
 });
 
-// =====================
-// 🛠 UTILIDADES
-// =====================
+app.post("/setup-admin", async (req, res) => {
+  const existe = await Empleado.findOne({ email: "admin1@sloteats.com" });
+  if (existe) return res.send("Admin ya existe en la base de datos.");
+  const nuevoAdmin = new Empleado({
+    nombre: "Administrador Principal",
+    email: "admin1@sloteats.com",
+    password: "adminpassword123",
+    rol: "admin"
+  });
+  await nuevoAdmin.save();
+  res.send("✅ Administrador creado con éxito.");
+});
+
 app.get("/limpiar-todo", async (req, res) => {
   await Reserva.deleteMany({});
   await Pedido.deleteMany({});
@@ -219,4 +281,4 @@ app.get("/limpiar-todo", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => console.log(`🚀 Servidor en puerto ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => console.log(`🚀 Servidor SlotEats corriendo en puerto ${PORT}`));

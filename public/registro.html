@@ -48,7 +48,14 @@
     // Función para el ojito
     function togglePass() {
         const p = document.getElementById('password');
-        p.type = p.type === 'password' ? 'text' : 'password';
+        const btn = document.querySelector('.toggle-btn');
+        if (p.type === 'password') {
+            p.type = 'text';
+            btn.innerText = '🔒';
+        } else {
+            p.type = 'password';
+            btn.innerText = '👁️';
+        }
     }
 
     document.getElementById('regForm').addEventListener('submit', async (e) => {
@@ -69,23 +76,29 @@
                 body: JSON.stringify(data)
             });
             
+            const result = await res.json();
+            
             if(res.ok) {
-                // --- CLAVE DEL ÉXITO ---
-                // 1. Guardamos que la sesión está ACTIVA para que home.html no nos eche
+                // --- PERSISTENCIA COMPLETA ---
                 localStorage.setItem('sesionActiva', 'true'); 
-                
-                // 2. Guardamos el nombre para el saludo personalizado
                 localStorage.setItem('userNombre', data.nombre); 
+                localStorage.setItem('userEmail', data.email);
+                localStorage.setItem('userTipo', 'cliente'); // Importante para diferenciar de staff
+
+                // Guardamos el objeto usuario para compatibilidad con otras páginas
+                localStorage.setItem('usuario', JSON.stringify({
+                    nombre: data.nombre,
+                    email: data.email,
+                    tipo: 'cliente'
+                }));
                 
-                alert("¡Bienvenido/a a SlotEats!");
-                
-                // 3. Vamos al Home
+                alert("¡Bienvenido/a a SlotEats, " + data.nombre + "!");
                 window.location.href = 'home.html'; 
             } else {
-                alert("Error al registrar: El usuario ya podría existir.");
+                alert(result.msg || "Error al registrar: El usuario o email ya existen.");
             }
         } catch (error) { 
-            alert("Error de conexión con el servidor"); 
+            alert("No se pudo conectar con el servidor. Verifica tu conexión."); 
         }
     });
 </script>
