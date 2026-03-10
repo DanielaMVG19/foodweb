@@ -28,16 +28,18 @@ mongoose.connect(process.env.MONGO_URI)
 // =====================
 // 📦 MODELOS
 // =====================
-const Usuario = mongoose.model("Usuario", new mongoose.Schema({
+const UsuarioSchema = new mongoose.Schema({
   nombre: { type: String, required: true },
   apellido: String,
-  username: { type: String, unique: true },
+  username: { type: String, unique: true, sparse: true }, // sparse ayuda si hay nulos
   email: { type: String, required: true, unique: true },
   telefono: String,
   password: { type: String, required: true },
   intentosFallidos: { type: Number, default: 0 },
   estaBloqueado: { type: Boolean, default: false }
-}, { collection: 'usuarios' })); // Aseguramos que use tu colección 'usuarios'
+}, { collection: 'usuarios' });
+
+const Usuario = mongoose.model("Usuario", UsuarioSchema);
 
 const Empleado = mongoose.model("Empleado", new mongoose.Schema({
   nombre: String,
@@ -78,43 +80,45 @@ app.get("/stats-ranking", async (req, res) => {
       { $group: { _id: "$restaurante", total: { $sum: 1 } } },
       { $sort: { total: -1 } }
     ]);
-
     const maxReservas = rankingRes.length > 0 ? rankingRes[0].total : 1;
     const topRestaurantes = rankingRes.slice(0, 5).map(r => ({
-      nombre: r._id,
-      porcentaje: Math.round((r.total / maxReservas) * 100),
-      cantidad: r.total
+      nombre: r._id, porcentaje: Math.round((r.total / maxReservas) * 100), cantidad: r.total
     }));
-
     const nombresConReserva = rankingRes.map(r => r._id);
     const sinReserva = todosLosRes.filter(n => !nombresConReserva.includes(n));
     let menosSolicitados = sinReserva.map(n => ({ nombre: n, porcentaje: 5 }));
-
     const topComidas = [
       { nombre: "Monster Burger", pedidos: (rankingRes.find(r => r._id === "Burger Galaxy")?.total || 0) * 12 + 10 },
       { nombre: "Sushi Master Roll", pedidos: (rankingRes.find(r => r._id === "Sushi Master")?.total || 0) * 8 + 5 },
       { nombre: "Pizza Peperoni", pedidos: (rankingRes.find(r => r._id === "Pizza Nostra")?.total || 0) * 10 + 2 }
     ].sort((a, b) => b.pedidos - a.pedidos);
-
     res.json({ topRestaurantes, topComidas, menosSolicitados: menosSolicitados.slice(0, 3) });
-  } catch (e) {
-    res.status(500).json({ msg: "Error al obtener estadísticas" });
-  }
+  } catch (e) { res.status(500).json({ msg: "Error stats" }); }
 });
 
 // =====================
-// 🔐 RUTAS DE ACCESO
+// 🔐 RUTAS DE ACCESO (FIXED)
 // =====================
 app.post("/register", async (req, res) => {
   try {
-    const { password, ...datos } = req.body;
+    const { password, email, username, ...datos } = req.body;
+    
+    // 1. Limpieza preventiva: buscamos si ya existe por email o username
+    const existe = await Usuario.findOne({ $or: [{ email }, { username }] });
+    if (existe) {
+      return res.status(400).json({ 
+        msg: `Error: El ${existe.email === email ? 'Email' : 'Username'} ya está registrado.` 
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(password, saltRounds);
-    const nuevoUsuario = new Usuario({ ...datos, password: hashedPassword });
+    const nuevoUsuario = new Usuario({ email, username, ...datos, password: hashedPassword });
     await nuevoUsuario.save();
+    
     res.status(201).json({ msg: "Registro exitoso", nombre: nuevoUsuario.nombre });
   } catch (e) {
-    console.error("Error en Registro:", e);
-    res.status(400).json({ msg: "Error: El email o username ya existen." });
+    console.log("❌ ERROR DETALLADO:", e.message);
+    res.status(400).json({ msg: "Error en el servidor al registrar." });
   }
 });
 
@@ -129,33 +133,22 @@ app.post("/login", async (req, res) => {
     });
     return res.status(401).json({ msg: "Credenciales inválidas" });
   }
-  
-  if (usuario.estaBloqueado) {
-    return res.status(403).json({ msg: "Cuenta bloqueada tras 4 intentos fallidos." });
-  }
+  if (usuario.estaBloqueado) return res.status(403).json({ msg: "Cuenta bloqueada." });
 
   const esCorrecto = await bcrypt.compare(password, usuario.password);
-  
   if (!esCorrecto) {
     usuario.intentosFallidos += 1;
     await mongoose.connection.collection("security_logs").insertOne({
       ip: ipAtacante, email: email, resultado: "fallo", fecha: new Date(), intento: usuario.intentosFallidos
     });
-
-    if (usuario.intentosFallidos >= 4) {
-      usuario.estaBloqueado = true;
-    }
+    if (usuario.intentosFallidos >= 4) usuario.estaBloqueado = true;
     await usuario.save();
-
-    return res.status(401).json({ 
-      msg: `Credenciales inválidas. Intento ${usuario.intentosFallidos} de 4.` 
-    });
+    return res.status(401).json({ msg: `Intento ${usuario.intentosFallidos} de 4.` });
   }
 
   await mongoose.connection.collection("security_logs").insertOne({
     ip: ipAtacante, email: email, resultado: "exito", fecha: new Date()
   });
-
   usuario.intentosFallidos = 0;
   await usuario.save();
   res.json({ nombre: usuario.nombre, email: usuario.email, tipo: "cliente" });
@@ -171,7 +164,7 @@ app.post("/login-staff", async (req, res) => {
 });
 
 // =====================
-// 👑 RUTAS DE ADMINISTRADOR
+// 👑 RESTO DE RUTAS (RESERVAS, PEDIDOS, ADMIN)
 // =====================
 app.post("/nuevo-staff", async (req, res) => {
   try {
@@ -180,53 +173,38 @@ app.post("/nuevo-staff", async (req, res) => {
     const nuevoEmpleado = new Empleado({ nombre, email, password: hashedPassword });
     await nuevoEmpleado.save();
     res.status(201).json({ msg: `✅ Empleado ${nombre} dado de alta.` });
-  } catch (e) {
-    res.status(400).json({ msg: "Error al crear staff." });
-  }
+  } catch (e) { res.status(400).json({ msg: "Error al crear staff." }); }
 });
 
 app.get("/admin/pedidos", async (req, res) => {
   try {
     const pedidos = await Pedido.find().sort({ fecha: -1 });
     res.json(pedidos);
-  } catch (e) {
-    res.status(500).json({ msg: "Error al obtener pedidos" });
-  }
+  } catch (e) { res.status(500).json({ msg: "Error pedidos" }); }
 });
 
 app.patch("/admin/actualizar-estatus/:id", async (req, res) => {
   try {
-    const { nuevoEstatus } = req.body;
-    await Pedido.findByIdAndUpdate(req.params.id, { estatus: nuevoEstatus });
-    res.json({ msg: "Pedido actualizado con éxito" });
-  } catch (e) {
-    res.status(500).json({ msg: "Error al actualizar pedido" });
-  }
+    await Pedido.findByIdAndUpdate(req.params.id, { estatus: req.body.nuevoEstatus });
+    res.json({ msg: "Actualizado" });
+  } catch (e) { res.status(500).json({ msg: "Error" }); }
 });
 
-// =====================
-// 📅 RESERVAS Y PEDIDOS
-// =====================
 app.post("/reserve", async (req, res) => {
   try {
     const { fecha, hora, ...resto } = req.body;
-    const fechaTexto = `${fecha}T${hora}:00`;
-    const fechaHora = new Date(new Date(fechaTexto).toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
+    const fechaHora = new Date(`${fecha}T${hora}:00`);
     const nuevaReserva = new Reserva({ ...resto, fechaHora });
     await nuevaReserva.save();
     res.status(200).json({ id: nuevaReserva._id });
-  } catch (e) {
-    res.status(500).json({ msg: "Error al guardar reserva" });
-  }
+  } catch (e) { res.status(500).json({ msg: "Error reserva" }); }
 });
 
 app.get("/mis-reservas/:email", async (req, res) => {
   try {
     const reservas = await Reserva.find({ emailCliente: req.params.email }).sort({ fechaHora: -1 });
     res.json(reservas);
-  } catch (e) {
-    res.status(500).json({ msg: "Error al obtener reservas" });
-  }
+  } catch (e) { res.status(500).json({ msg: "Error" }); }
 });
 
 app.post("/enviar-pedido", async (req, res) => {
@@ -234,48 +212,35 @@ app.post("/enviar-pedido", async (req, res) => {
     const nuevoPedido = new Pedido(req.body);
     await nuevoPedido.save();
     res.status(201).json({ success: true, id: nuevoPedido._id });
-  } catch (e) {
-    res.status(500).json({ msg: "Error al procesar pedido" });
-  }
+  } catch (e) { res.status(500).json({ msg: "Error" }); }
 });
 
 app.get("/mis-pedidos/:email", async (req, res) => {
   try {
     const pedidos = await Pedido.find({ emailCliente: req.params.email }).sort({ fecha: -1 });
     res.json(pedidos);
-  } catch (e) {
-    res.status(500).json({ msg: "Error al obtener pedidos" });
-  }
+  } catch (e) { res.status(500).json({ msg: "Error" }); }
 });
 
-// =====================
-// 🎟 UTILIDADES
-// =====================
 app.get("/setup-admin", async (req, res) => {
-  try {
-    const existe = await Empleado.findOne({ email: "admin1@sloteats.com" });
-    if (existe) return res.send("<h1>El Administrador ya existe.</h1>");
-    const hashedPassword = await bcrypt.hash("adminpassword123", saltRounds);
-    const nuevoAdmin = new Empleado({
-      nombre: "Administrador Principal", email: "admin1@sloteats.com", password: hashedPassword, rol: "admin"
-    });
-    await nuevoAdmin.save();
-    res.send("<h1>✅ Administrador creado con éxito.</h1>");
-  } catch (e) {
-    res.status(500).send("Error: " + e.message);
-  }
+  const existe = await Empleado.findOne({ email: "admin1@sloteats.com" });
+  if (existe) return res.send("Ya existe.");
+  const hashedPassword = await bcrypt.hash("adminpassword123", saltRounds);
+  const nuevoAdmin = new Empleado({ nombre: "Admin", email: "admin1@sloteats.com", password: hashedPassword, rol: "admin" });
+  await nuevoAdmin.save();
+  res.send("Admin creado.");
 });
 
 app.get("/limpiar-todo", async (req, res) => {
   await Reserva.deleteMany({});
   await Pedido.deleteMany({});
-  res.send("✅ Limpieza total completada.");
+  res.send("Limpieza completada.");
 });
 
-// 🗑️ RUTA PARA BORRAR UN USUARIO ESPECÍFICO (PARA TUS PRUEBAS)
-app.get("/borrar-usuario/:email", async (req, res) => {
-  await Usuario.deleteOne({ email: req.params.email });
-  res.send(`Usuario ${req.params.email} eliminado.`);
+// 🔥 RUTA DE EMERGENCIA PARA BORRAR CUALQUIER COSA
+app.get("/force-delete/:email", async (req, res) => {
+  await Usuario.deleteMany({ email: req.params.email });
+  res.send("Eliminado de raíz.");
 });
 
 const PORT = process.env.PORT || 4000;
