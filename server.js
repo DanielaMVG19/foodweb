@@ -4,8 +4,8 @@ const mongoose = require("mongoose");
 const path = require("path");
 const QRCode = require("qrcode");
 const bcrypt = require("bcrypt"); 
-const fs = require("fs"); // Para escribir logs de seguridad
-const morgan = require("morgan"); // Para monitoreo de tráfico
+const fs = require("fs"); 
+const morgan = require("morgan"); 
 const saltRounds = 10; 
 
 const app = express();
@@ -15,7 +15,6 @@ app.use(express.static(path.join(__dirname, "public")));
 // =====================
 // 🛡️ MONITOREO Y LOGS
 // =====================
-// Crea access.log para auditoría de tráfico general
 const accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' });
 app.use(morgan('combined', { stream: accessLogStream }));
 
@@ -36,8 +35,8 @@ const Usuario = mongoose.model("Usuario", new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   telefono: String,
   password: { type: String, required: true },
-  intentosFallidos: { type: Number, default: 0 }, // Para control de fuerza bruta
-  estaBloqueado: { type: Boolean, default: false } // Para bloqueo de cuenta
+  intentosFallidos: { type: Number, default: 0 },
+  estaBloqueado: { type: Boolean, default: false }
 }));
 
 const Empleado = mongoose.model("Empleado", new mongoose.Schema({
@@ -104,7 +103,7 @@ app.get("/stats-ranking", async (req, res) => {
 });
 
 // =====================
-// 🔐 RUTAS DE ACCESO (LOGIC DE 4 INTENTOS)
+// 🔐 RUTAS DE ACCESO (MODIFICADA PARA LOGS DE SPARK)
 // =====================
 app.post("/register", async (req, res) => {
   try {
@@ -121,10 +120,18 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   const usuario = await Usuario.findOne({ email });
-
-  if (!usuario) return res.status(401).json({ msg: "Credenciales inválidas" });
   
-  // Verificar si la cuenta está bloqueada
+  // 🛡️ Capturar IP real para el análisis de Big Data
+  const ipAtacante = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+  if (!usuario) {
+    // Si el usuario no existe, registramos el fallo en Atlas para Spark
+    await mongoose.connection.collection("security_logs").insertOne({
+      ip: ipAtacante, email: email, resultado: "fallo", fecha: new Date()
+    });
+    return res.status(401).json({ msg: "Credenciales inválidas" });
+  }
+  
   if (usuario.estaBloqueado) {
     return res.status(403).json({ msg: "Cuenta bloqueada tras 4 intentos fallidos." });
   }
@@ -133,6 +140,16 @@ app.post("/login", async (req, res) => {
   
   if (!esCorrecto) {
     usuario.intentosFallidos += 1;
+    
+    // Inserción en la colección que lee tu Dashboard de Spark
+    await mongoose.connection.collection("security_logs").insertOne({
+      ip: ipAtacante,
+      email: email,
+      resultado: "fallo",
+      fecha: new Date(),
+      intento: usuario.intentosFallidos
+    });
+
     let alerta = `[ALERTA] Intento fallido: ${email} - Intento #${usuario.intentosFallidos} - ${new Date()}\n`;
 
     if (usuario.intentosFallidos >= 4) {
@@ -140,7 +157,6 @@ app.post("/login", async (req, res) => {
       alerta = `[BLOQUEO] Usuario ${email} bloqueado por fuerza bruta - ${new Date()}\n`;
     }
 
-    // Guardar alerta para análisis posterior en Spark
     fs.appendFileSync('security_alerts.log', alerta);
     await usuario.save();
 
@@ -149,7 +165,11 @@ app.post("/login", async (req, res) => {
     });
   }
 
-  // Resetear intentos en login exitoso
+  // Si el login es exitoso
+  await mongoose.connection.collection("security_logs").insertOne({
+    ip: ipAtacante, email: email, resultado: "exito", fecha: new Date()
+  });
+
   usuario.intentosFallidos = 0;
   await usuario.save();
   
@@ -178,7 +198,7 @@ app.post("/nuevo-staff", async (req, res) => {
     await nuevoEmpleado.save();
     res.status(201).json({ msg: `✅ Empleado ${nombre} dado de alta.` });
   } catch (e) {
-    res.status(400).json({ msg: "Error al crear staff. El email podría ya estar en uso." });
+    res.status(400).json({ msg: "Error al crear staff." });
   }
 });
 
@@ -187,7 +207,7 @@ app.get("/admin/pedidos", async (req, res) => {
     const pedidos = await Pedido.find().sort({ fecha: -1 });
     res.json(pedidos);
   } catch (e) {
-    res.status(500).json({ msg: "Error al obtener pedidos globales" });
+    res.status(500).json({ msg: "Error al obtener pedidos" });
   }
 });
 
@@ -230,7 +250,7 @@ app.post("/enviar-pedido", async (req, res) => {
   try {
     const nuevoPedido = new Pedido(req.body);
     await nuevoPedido.save();
-    res.status(201).json({ success: true, msg: "¡Pedido enviado a cocina!", id: nuevoPedido._id });
+    res.status(201).json({ success: true, id: nuevoPedido._id });
   } catch (e) {
     res.status(500).json({ msg: "Error al procesar pedido" });
   }
@@ -251,19 +271,15 @@ app.get("/mis-pedidos/:email", async (req, res) => {
 app.get("/setup-admin", async (req, res) => {
   try {
     const existe = await Empleado.findOne({ email: "admin1@sloteats.com" });
-    if (existe) return res.send("<h1>El Administrador ya existe en la base de datos.</h1>");
-    
+    if (existe) return res.send("<h1>El Administrador ya existe.</h1>");
     const hashedPassword = await bcrypt.hash("adminpassword123", saltRounds);
     const nuevoAdmin = new Empleado({
-      nombre: "Administrador Principal",
-      email: "admin1@sloteats.com",
-      password: hashedPassword,
-      rol: "admin"
+      nombre: "Administrador Principal", email: "admin1@sloteats.com", password: hashedPassword, rol: "admin"
     });
     await nuevoAdmin.save();
-    res.send("<h1>✅ Administrador creado con éxito (Encriptado).</h1><p>Ya puedes iniciar sesión como Staff.</p>");
+    res.send("<h1>✅ Administrador creado con éxito.</h1>");
   } catch (e) {
-    res.status(500).send("Error al configurar admin: " + e.message);
+    res.status(500).send("Error: " + e.message);
   }
 });
 
