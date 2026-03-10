@@ -4,6 +4,8 @@ const mongoose = require("mongoose");
 const path = require("path");
 const QRCode = require("qrcode");
 const bcrypt = require("bcrypt"); 
+const fs = require("fs"); // Para escribir logs de seguridad
+const morgan = require("morgan"); // Para monitoreo de tráfico
 const saltRounds = 10; 
 
 const app = express();
@@ -11,9 +13,15 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // =====================
+// 🛡️ MONITOREO Y LOGS
+// =====================
+// Crea access.log para auditoría de tráfico general
+const accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' });
+app.use(morgan('combined', { stream: accessLogStream }));
+
+// =====================
 // 🔗 CONEXIÓN MONGODB
 // =====================
-// Asegúrate de que tu IP esté en la lista blanca de MongoDB Atlas (Network Access -> 0.0.0.0/0)
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Conectado"))
   .catch(err => console.error("❌ Error Mongo:", err));
@@ -27,7 +35,9 @@ const Usuario = mongoose.model("Usuario", new mongoose.Schema({
   username: { type: String, unique: true },
   email: { type: String, required: true, unique: true },
   telefono: String,
-  password: { type: String, required: true }
+  password: { type: String, required: true },
+  intentosFallidos: { type: Number, default: 0 }, // Para control de fuerza bruta
+  estaBloqueado: { type: Boolean, default: false } // Para bloqueo de cuenta
 }));
 
 const Empleado = mongoose.model("Empleado", new mongoose.Schema({
@@ -94,7 +104,7 @@ app.get("/stats-ranking", async (req, res) => {
 });
 
 // =====================
-// 🔐 RUTAS DE ACCESO
+// 🔐 RUTAS DE ACCESO (LOGIC DE 4 INTENTOS)
 // =====================
 app.post("/register", async (req, res) => {
   try {
@@ -111,10 +121,37 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   const usuario = await Usuario.findOne({ email });
+
   if (!usuario) return res.status(401).json({ msg: "Credenciales inválidas" });
   
+  // Verificar si la cuenta está bloqueada
+  if (usuario.estaBloqueado) {
+    return res.status(403).json({ msg: "Cuenta bloqueada tras 4 intentos fallidos." });
+  }
+
   const esCorrecto = await bcrypt.compare(password, usuario.password);
-  if (!esCorrecto) return res.status(401).json({ msg: "Credenciales inválidas" });
+  
+  if (!esCorrecto) {
+    usuario.intentosFallidos += 1;
+    let alerta = `[ALERTA] Intento fallido: ${email} - Intento #${usuario.intentosFallidos} - ${new Date()}\n`;
+
+    if (usuario.intentosFallidos >= 4) {
+      usuario.estaBloqueado = true;
+      alerta = `[BLOQUEO] Usuario ${email} bloqueado por fuerza bruta - ${new Date()}\n`;
+    }
+
+    // Guardar alerta para análisis posterior en Spark
+    fs.appendFileSync('security_alerts.log', alerta);
+    await usuario.save();
+
+    return res.status(401).json({ 
+      msg: `Credenciales inválidas. Intento ${usuario.intentosFallidos} de 4.` 
+    });
+  }
+
+  // Resetear intentos en login exitoso
+  usuario.intentosFallidos = 0;
+  await usuario.save();
   
   res.json({ nombre: usuario.nombre, email: usuario.email, tipo: "cliente" });
 });
@@ -133,7 +170,6 @@ app.post("/login-staff", async (req, res) => {
 // =====================
 // 👑 RUTAS DE ADMINISTRADOR (STAFF)
 // =====================
-
 app.post("/nuevo-staff", async (req, res) => {
   try {
     const { nombre, email, password } = req.body;
@@ -212,8 +248,6 @@ app.get("/mis-pedidos/:email", async (req, res) => {
 // =====================
 // 🎟 UTILIDADES DE SISTEMA
 // =====================
-
-// MODIFICADA A GET: Para que funcione entrando directamente a la URL en el navegador
 app.get("/setup-admin", async (req, res) => {
   try {
     const existe = await Empleado.findOne({ email: "admin1@sloteats.com" });
@@ -239,5 +273,10 @@ app.get("/limpiar-todo", async (req, res) => {
   res.send("✅ Limpieza total completada.");
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => console.log(`🚀 Servidor SlotEats corriendo en puerto ${PORT}`));
+// =====================
+// 🚀 INICIO DEL SERVIDOR
+// =====================
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Servidor SlotEats corriendo en puerto ${PORT}`);
+});
