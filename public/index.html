@@ -70,22 +70,49 @@
             transition: 0.3s; 
         }
         .btn-login:hover { background: var(--secondary); transform: translateY(-2px); }
+        
+        /* Estilos del Modal Flotante */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none; /* Oculto por defecto */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 300px;
+            text-align: center;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .unlock-link {
+            display: block;
+            margin-top: 15px;
+            color: #666;
+            font-size: 13px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .unlock-link:hover { color: var(--primary); text-decoration: underline; }
+
         .divider { margin: 25px 0; border-bottom: 1px solid #eee; position: relative; }
         .divider span { background: white; padding: 0 15px; position: relative; top: 10px; color: #999; font-size: 14px; }
+        
         .btn-register { 
-            width: 100%; 
-            padding: 14px; 
-            background: white; 
-            color: var(--primary); 
-            border: 2px solid var(--primary); 
-            border-radius: 10px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            font-size: 16px; 
-            transition: 0.3s; 
-            margin-top: 10px; 
+            width: 100%; padding: 14px; background: white; color: var(--primary); 
+            border: 2px solid var(--primary); border-radius: 10px; cursor: pointer; 
+            font-weight: bold; font-size: 16px; transition: 0.3s; margin-top: 10px; 
         }
         .btn-register:hover { background: #fff5f5; border-color: var(--secondary); color: var(--secondary); }
+        
+        .btn-close { position: absolute; top: 10px; right: 10px; cursor: pointer; border: none; background: none; font-size: 20px; color: #999; }
     </style>
 </head>
 <body>
@@ -95,18 +122,28 @@
         
         <form id="loginForm">
             <input type="email" id="emailLogin" placeholder="Correo Electrónico" required>
-            
             <div class="pass-container">
                 <input type="password" id="passLogin" placeholder="Contraseña" required>
                 <span class="toggle-btn" onclick="togglePassword()">👁️</span>
             </div>
-            
             <button type="submit" class="btn-login">Iniciar Sesión</button>
         </form>
 
-        <div class="divider"><span>¿Eres nuevo?</span></div>
+        <a class="unlock-link" onclick="abrirModal()">¿Cuenta bloqueada? Desbloquear aquí</a>
 
+        <div class="divider"><span>¿Eres nuevo?</span></div>
         <button class="btn-register" onclick="window.location.href='registro.html'">Crear Cuenta</button>
+    </div>
+
+    <div id="modalDesbloqueo" class="modal-overlay">
+        <div class="modal-content">
+            <button class="btn-close" onclick="cerrarModal()">&times;</button>
+            <h4 style="color: var(--primary); margin-bottom: 15px;">Desbloquear Cuenta</h4>
+            <p style="font-size: 12px; color: #666;">Ingresa los datos enviados a tu correo</p>
+            <input type="email" id="emailUnlock" placeholder="Tu Correo" required>
+            <input type="text" id="codigoUnlock" placeholder="Código de 6 dígitos" maxlength="6" required>
+            <button class="btn-login" onclick="enviarDesbloqueo()">Confirmar Código</button>
+        </div>
     </div>
 
     <script>
@@ -122,54 +159,57 @@
             }
         }
 
+        // --- LÓGICA DEL MODAL ---
+        function abrirModal() { document.getElementById('modalDesbloqueo').style.display = 'flex'; }
+        function cerrarModal() { document.getElementById('modalDesbloqueo').style.display = 'none'; }
+
+        async function enviarDesbloqueo() {
+            const email = document.getElementById('emailUnlock').value;
+            const codigo = document.getElementById('codigoUnlock').value;
+
+            if (!email || !codigo) return alert("Por favor llena ambos campos");
+
+            try {
+                const response = await fetch('/unlock-account', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, codigo })
+                });
+                const result = await response.json();
+                alert(result.msg);
+                if (response.ok) cerrarModal();
+            } catch (error) {
+                alert("Error de conexión.");
+            }
+        }
+
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const emailValue = document.getElementById('emailLogin').value;
             const passValue = document.getElementById('passLogin').value;
-
-            // Lógica Pro: Detectar si el correo es de staff/empleado
             const esStaff = emailValue.toLowerCase().endsWith('@sloteats.com');
             const rutaApi = esStaff ? '/login-staff' : '/login';
-
-            const data = {
-                email: emailValue,
-                password: passValue
-            };
 
             try {
                 const response = await fetch(rutaApi, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({ email: emailValue, password: passValue })
                 });
-
                 const result = await response.json();
 
                 if (response.ok) {
-                    // Guardamos la sesión con el tipo de usuario
                     localStorage.setItem('sesionActiva', 'true');
                     localStorage.setItem('userNombre', result.nombre); 
                     localStorage.setItem('userEmail', result.email);
-                    localStorage.setItem('userTipo', result.tipo); // 'cliente' o 'staff'
-
-                    // Objeto completo para compatibilidad
-                    localStorage.setItem('usuario', JSON.stringify(result));
-
+                    localStorage.setItem('userTipo', result.tipo);
                     alert("¡Bienvenido " + result.nombre + "!");
-
-                    // Redirección basada en el tipo de usuario
-                    if (result.tipo === 'staff') {
-                        window.location.href = "staff-panel.html"; // Redirigimos al panel de gestión
-                    } else {
-                        window.location.href = "home.html"; 
-                    }
+                    window.location.href = (result.tipo === 'staff') ? "staff-panel.html" : "home.html";
                 } else {
                     alert(result.msg || "Error en el inicio de sesión");
                 }
             } catch (error) {
-                alert("No se pudo conectar con el servidor. Verifica tu conexión.");
-                console.error("Error Fetch:", error);
+                alert("Error al conectar con el servidor.");
             }
         });
     </script>
