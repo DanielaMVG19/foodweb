@@ -37,7 +37,7 @@ const Usuario = mongoose.model("Usuario", new mongoose.Schema({
   password: { type: String, required: true },
   intentosFallidos: { type: Number, default: 0 },
   estaBloqueado: { type: Boolean, default: false }
-}));
+}, { collection: 'usuarios' })); // Aseguramos que use tu colección 'usuarios'
 
 const Empleado = mongoose.model("Empleado", new mongoose.Schema({
   nombre: String,
@@ -103,7 +103,7 @@ app.get("/stats-ranking", async (req, res) => {
 });
 
 // =====================
-// 🔐 RUTAS DE ACCESO (MODIFICADA PARA LOGS DE SPARK)
+// 🔐 RUTAS DE ACCESO
 // =====================
 app.post("/register", async (req, res) => {
   try {
@@ -113,6 +113,7 @@ app.post("/register", async (req, res) => {
     await nuevoUsuario.save();
     res.status(201).json({ msg: "Registro exitoso", nombre: nuevoUsuario.nombre });
   } catch (e) {
+    console.error("Error en Registro:", e);
     res.status(400).json({ msg: "Error: El email o username ya existen." });
   }
 });
@@ -120,12 +121,9 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   const usuario = await Usuario.findOne({ email });
-  
-  // 🛡️ Capturar IP real para el análisis de Big Data
   const ipAtacante = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
   if (!usuario) {
-    // Si el usuario no existe, registramos el fallo en Atlas para Spark
     await mongoose.connection.collection("security_logs").insertOne({
       ip: ipAtacante, email: email, resultado: "fallo", fecha: new Date()
     });
@@ -140,24 +138,13 @@ app.post("/login", async (req, res) => {
   
   if (!esCorrecto) {
     usuario.intentosFallidos += 1;
-    
-    // Inserción en la colección que lee tu Dashboard de Spark
     await mongoose.connection.collection("security_logs").insertOne({
-      ip: ipAtacante,
-      email: email,
-      resultado: "fallo",
-      fecha: new Date(),
-      intento: usuario.intentosFallidos
+      ip: ipAtacante, email: email, resultado: "fallo", fecha: new Date(), intento: usuario.intentosFallidos
     });
-
-    let alerta = `[ALERTA] Intento fallido: ${email} - Intento #${usuario.intentosFallidos} - ${new Date()}\n`;
 
     if (usuario.intentosFallidos >= 4) {
       usuario.estaBloqueado = true;
-      alerta = `[BLOQUEO] Usuario ${email} bloqueado por fuerza bruta - ${new Date()}\n`;
     }
-
-    fs.appendFileSync('security_alerts.log', alerta);
     await usuario.save();
 
     return res.status(401).json({ 
@@ -165,14 +152,12 @@ app.post("/login", async (req, res) => {
     });
   }
 
-  // Si el login es exitoso
   await mongoose.connection.collection("security_logs").insertOne({
     ip: ipAtacante, email: email, resultado: "exito", fecha: new Date()
   });
 
   usuario.intentosFallidos = 0;
   await usuario.save();
-  
   res.json({ nombre: usuario.nombre, email: usuario.email, tipo: "cliente" });
 });
 
@@ -180,15 +165,13 @@ app.post("/login-staff", async (req, res) => {
   const { email, password } = req.body;
   const emp = await Empleado.findOne({ email });
   if (!emp) return res.status(401).json({ msg: "Acceso denegado Staff" });
-
   const esCorrecto = await bcrypt.compare(password, emp.password);
   if (!esCorrecto) return res.status(401).json({ msg: "Acceso denegado Staff" });
-
   res.json({ nombre: emp.nombre, email: emp.email, tipo: "staff" });
 });
 
 // =====================
-// 👑 RUTAS DE ADMINISTRADOR (STAFF)
+// 👑 RUTAS DE ADMINISTRADOR
 // =====================
 app.post("/nuevo-staff", async (req, res) => {
   try {
@@ -222,7 +205,7 @@ app.patch("/admin/actualizar-estatus/:id", async (req, res) => {
 });
 
 // =====================
-// 📅 RESERVAS Y PEDIDOS CLIENTE
+// 📅 RESERVAS Y PEDIDOS
 // =====================
 app.post("/reserve", async (req, res) => {
   try {
@@ -266,7 +249,7 @@ app.get("/mis-pedidos/:email", async (req, res) => {
 });
 
 // =====================
-// 🎟 UTILIDADES DE SISTEMA
+// 🎟 UTILIDADES
 // =====================
 app.get("/setup-admin", async (req, res) => {
   try {
@@ -289,9 +272,12 @@ app.get("/limpiar-todo", async (req, res) => {
   res.send("✅ Limpieza total completada.");
 });
 
-// =====================
-// 🚀 INICIO DEL SERVIDOR
-// =====================
+// 🗑️ RUTA PARA BORRAR UN USUARIO ESPECÍFICO (PARA TUS PRUEBAS)
+app.get("/borrar-usuario/:email", async (req, res) => {
+  await Usuario.deleteOne({ email: req.params.email });
+  res.send(`Usuario ${req.params.email} eliminado.`);
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Servidor SlotEats corriendo en puerto ${PORT}`);
