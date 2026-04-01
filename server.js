@@ -168,15 +168,23 @@ app.post("/login", async (req, res) => {
   res.json({ nombre: usuario.nombre, email: usuario.email, tipo: "cliente" });
 });
 
+// RUTA DE DESBLOQUEO CORREGIDA (NO BORRA NADA, AGREGA LA ACTUALIZACIÓN DE PASSWORD)
 app.post("/unlock-account", async (req, res) => {
-  const { email, codigo } = req.body;
+  const { email, codigo, nuevaPassword } = req.body;
   const usuario = await Usuario.findOne({ email });
+
   if (usuario && usuario.codigoDesbloqueo === codigo) {
+    // Si viene una nueva contraseña, la hasheamos y actualizamos
+    if (nuevaPassword) {
+      const hashedPassword = await bcrypt.hash(nuevaPassword, saltRounds);
+      usuario.password = hashedPassword;
+    }
+    
     usuario.estaBloqueado = false;
     usuario.intentosFallidos = 0;
     usuario.codigoDesbloqueo = null;
     await usuario.save();
-    res.json({ msg: "✅ Cuenta desbloqueada." });
+    res.json({ msg: "✅ Cuenta desbloqueada y seguridad actualizada." });
   } else {
     res.status(400).json({ msg: "❌ Código incorrecto." });
   }

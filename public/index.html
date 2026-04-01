@@ -113,6 +113,9 @@
         .btn-register:hover { background: #fff5f5; border-color: var(--secondary); color: var(--secondary); }
         
         .btn-close { position: absolute; top: 10px; right: 10px; cursor: pointer; border: none; background: none; font-size: 20px; color: #999; }
+        
+        /* Mensaje de error personalizado */
+        #errorMsg { color: var(--primary); font-size: 12px; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
@@ -139,10 +142,19 @@
         <div class="modal-content">
             <button class="btn-close" onclick="cerrarModal()">&times;</button>
             <h4 style="color: var(--primary); margin-bottom: 15px;">Desbloquear Cuenta</h4>
-            <p style="font-size: 12px; color: #666;">Ingresa los datos enviados a tu correo</p>
+            <p style="font-size: 12px; color: #666;">Ingresa tus datos y nueva contraseña</p>
+            
             <input type="email" id="emailUnlock" placeholder="Tu Correo" required>
             <input type="text" id="codigoUnlock" placeholder="Código de 6 dígitos" maxlength="6" required>
-            <button class="btn-login" onclick="enviarDesbloqueo()">Confirmar Código</button>
+            
+            <div class="divider"><span>Actualiza tu contraseña</span></div>
+            
+            <input type="password" id="newPass" placeholder="Nueva contraseña" required>
+            <input type="password" id="confirmPass" placeholder="Confirmar contraseña" required>
+            
+            <p id="errorMsg">⚠️ Las contraseñas no coinciden</p>
+            
+            <button class="btn-login" onclick="enviarDesbloqueo()">Restablecer y Desbloquear</button>
         </div>
     </div>
 
@@ -161,19 +173,37 @@
 
         // --- LÓGICA DEL MODAL ---
         function abrirModal() { document.getElementById('modalDesbloqueo').style.display = 'flex'; }
-        function cerrarModal() { document.getElementById('modalDesbloqueo').style.display = 'none'; }
+        function cerrarModal() { 
+            document.getElementById('modalDesbloqueo').style.display = 'none'; 
+            document.getElementById('errorMsg').style.display = 'none';
+        }
 
         async function enviarDesbloqueo() {
             const email = document.getElementById('emailUnlock').value;
             const codigo = document.getElementById('codigoUnlock').value;
+            const newPass = document.getElementById('newPass').value;
+            const confirmPass = document.getElementById('confirmPass').value;
+            const errorDisplay = document.getElementById('errorMsg');
 
-            if (!email || !codigo) return alert("Por favor llena ambos campos");
+            if (!email || !codigo || !newPass || !confirmPass) return alert("Por favor llena todos los campos");
+
+            // VALIDACIÓN DE COINCIDENCIA
+            if (newPass !== confirmPass) {
+                errorDisplay.style.display = 'block';
+                return;
+            } else {
+                errorDisplay.style.display = 'none';
+            }
 
             try {
                 const response = await fetch('/unlock-account', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, codigo })
+                    body: JSON.stringify({ 
+                        email, 
+                        codigo, 
+                        nuevaPassword: newPass // Se envía la nueva contraseña al servidor
+                    })
                 });
                 const result = await response.json();
                 alert(result.msg);
