@@ -168,13 +168,11 @@ app.post("/login", async (req, res) => {
   res.json({ nombre: usuario.nombre, email: usuario.email, tipo: "cliente" });
 });
 
-// RUTA DE DESBLOQUEO CORREGIDA (NO BORRA NADA, AGREGA LA ACTUALIZACIÓN DE PASSWORD)
 app.post("/unlock-account", async (req, res) => {
   const { email, codigo, nuevaPassword } = req.body;
   const usuario = await Usuario.findOne({ email });
 
   if (usuario && usuario.codigoDesbloqueo === codigo) {
-    // Si viene una nueva contraseña, la hasheamos y actualizamos
     if (nuevaPassword) {
       const hashedPassword = await bcrypt.hash(nuevaPassword, saltRounds);
       usuario.password = hashedPassword;
@@ -267,6 +265,24 @@ app.get("/mis-reservas/:email", async (req, res) => {
     res.json(reservas);
   } catch (e) {
     res.status(500).json({ msg: "Error al obtener reservas" });
+  }
+});
+
+// 🎟 RUTA PARA GENERAR QR (AQUÍ ESTABA EL ERROR 404)
+app.post("/generar-qr", async (req, res) => {
+  try {
+    const { reservaId } = req.body;
+    if (!reservaId) return res.status(400).json({ msg: "Falta ID" });
+
+    const reserva = await Reserva.findById(reservaId);
+    if (!reserva) return res.status(404).json({ msg: "No encontrada" });
+
+    const qrImagen = await QRCode.toDataURL(`ID: ${reservaId} | ${reserva.restaurante}`);
+    reserva.ultimoQRGenerado = new Date();
+    await reserva.save();
+    res.json({ qrImagen });
+  } catch (e) {
+    res.status(500).json({ msg: "Error QR" });
   }
 });
 
